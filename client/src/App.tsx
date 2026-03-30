@@ -34,6 +34,7 @@ import { Loader2 } from "lucide-react";
 function Router() {
   return (
     <Switch>
+      <Route path={"/login"} component={LoginPage} />
       <Route path={"/"} component={Home} />
       <Route path={"/import"} component={ImportPage} />
       <Route path={"/cases/unvisited"} component={() => <CasesListPage status="unvisited" />} />
