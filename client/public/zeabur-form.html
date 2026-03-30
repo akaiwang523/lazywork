@@ -70,9 +70,16 @@ body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--
 .vital-group input{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-family:inherit;text-align:center}
 .vital-group input:focus{outline:none;border-color:var(--blue)}
 .bmi-display{background:var(--gray);border-radius:8px;padding:9px 10px;text-align:center;font-size:15px;color:var(--muted)}
-#result-section .copy-area{max-height:60vh;overflow-y:auto}
 .result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .copy-all-btn{padding:8px 16px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+/* 藥物影像辨識 */
+.ocr-zone{border:2px dashed var(--border);border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;background:#fafbfc;cursor:pointer;transition:.15s}
+.ocr-zone:hover{border-color:var(--blue);background:var(--blue-light)}
+.ocr-zone input[type=file]{display:none}
+.ocr-status{font-size:13px;padding:8px 12px;border-radius:8px;margin-top:8px;display:none}
+.ocr-status.loading{background:#fffbeb;color:#92400e;border:1px solid #fcd34d;display:block}
+.ocr-status.success{background:var(--green-light);color:#0a5e47;border:1px solid #86efac;display:block}
+.ocr-status.error{background:#fef2f2;color:var(--red);border:1px solid #fca5a5;display:block}
 @media(max-width:600px){
   .field-row{grid-template-columns:1fr}
   .field-row.three{grid-template-columns:1fr 1fr}
@@ -81,9 +88,6 @@ body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--
   .opt-btn{font-size:12px;padding:7px 10px}
 }
 </style>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js"></script>
 </head>
 <body>
 
@@ -104,7 +108,6 @@ body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--
   <button class="tab-btn" onclick="showTab('device',this)">設備了解</button>
   <button class="tab-btn" onclick="showTab('vitals',this)">評估數據</button>
   <button class="tab-btn" onclick="showTab('sign',this)">✍️ 簽名</button>
-  <button class="tab-btn" onclick="showTab('records',this);renderRecords()">📁 紀錄</button>
   <button class="tab-btn" onclick="showTab('result',this)">📋 產生結果</button>
 </div>
 
@@ -170,10 +173,22 @@ body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--
     <div id="surgery-detail" style="margin-top:10px;display:none"><div class="field-group"><label>手術名稱</label><input id="surgery_name" type="text"></div></div>
   </div></div>
   <div class="card"><div class="card-head">最近一年跌倒</div><div class="card-body"><div class="radio-row" id="fall"></div></div></div>
-  <div class="card"><div class="card-head">用藥情形</div><div class="card-body">
-    <div id="drug-list"></div>
-    <button class="add-btn" onclick="addDrug()">+ 新增藥物</button>
-  </div></div>
+  <div class="card">
+    <div class="card-head">
+      用藥情形
+      <button onclick="document.getElementById('drug-img-input').click()" style="padding:4px 10px;border:1px solid var(--blue);border-radius:6px;background:var(--blue-light);color:var(--blue);font-size:12px;cursor:pointer;font-family:inherit">📷 掃描藥袋</button>
+    </div>
+    <div class="card-body">
+      <!-- 藥袋影像辨識區 -->
+      <input type="file" id="drug-img-input" accept="image/*" capture="environment" style="display:none" onchange="handleDrugImage(this)">
+      <div id="drug-preview" style="display:none;margin-bottom:12px">
+        <img id="drug-preview-img" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border)">
+      </div>
+      <div id="ocr-status" class="ocr-status"></div>
+      <div id="drug-list"></div>
+      <button class="add-btn" onclick="addDrug()">+ 新增藥物</button>
+    </div>
+  </div>
 </div>
 
 <div id="tab-device" class="section">
@@ -210,46 +225,32 @@ body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--
   <div class="card">
     <div class="card-head">個案簽名 <button onclick="clearCanvas('sig-client')" style="padding:2px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:white;cursor:pointer">清除</button></div>
     <div class="card-body" style="padding:8px"><canvas id="sig-client" width="800" height="200" style="width:100%;height:150px;border:1px solid var(--border);border-radius:8px;background:white"></canvas></div>
-    <div style="padding:0 16px 12px 16px"><button onclick="window.parent.postMessage({type:'downloadSignature',signatureType:'client'},window.location.origin)" style="width:100%;padding:8px;background:#2c7be5;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">⬇️ 下載個案簽名</button></div>
+    <div style="padding:0 16px 12px 16px"><button onclick="window.parent.postMessage({type:'downloadSignature',signatureType:'client'},'*')" style="width:100%;padding:8px;background:#2c7be5;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">⬇️ 下載個案簽名</button></div>
   </div>
   <div class="card">
     <div class="card-head">家訪員簽名 <button onclick="clearCanvas('sig-worker')" style="padding:2px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:white;cursor:pointer">清除</button></div>
     <div class="card-body" style="padding:8px"><canvas id="sig-worker" width="800" height="200" style="width:100%;height:150px;border:1px solid var(--border);border-radius:8px;background:white"></canvas></div>
-    <div style="padding:0 16px 12px 16px"><button onclick="window.parent.postMessage({type:'downloadSignature',signatureType:'worker'},window.location.origin)" style="width:100%;padding:8px;background:#2c7be5;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">⬇️ 下載家訪員簽名</button></div>
+    <div style="padding:0 16px 12px 16px"><button onclick="window.parent.postMessage({type:'downloadSignature',signatureType:'worker'},'*')" style="width:100%;padding:8px;background:#2c7be5;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">⬇️ 下載家訪員簽名</button></div>
   </div>
-  <div class="card">
-    <div class="card-head">儲存設定</div>
-    <div class="card-body">
-      <div style="display:flex;gap:8px;margin-bottom:8px"><button onclick="setSaveMode('firebase')" id="mode-firebase" class="radio-btn selected" style="flex:1">Firebase 雲端</button><button onclick="setSaveMode('download')" id="mode-download" class="radio-btn" style="flex:1">直接下載</button></div>
-      <div id="cfg-firebase" style="font-size:13px;color:var(--muted);padding:8px 0">✓ 簽名將自動儲存到 Firebase Cloud Firestore</div>
-      <div id="cfg-download" style="display:none;font-size:13px;color:var(--muted);padding:8px 0">簽名完成後直接下載 PNG 圖片到本機</div>
-    </div>
-  </div>
-  <button onclick="saveSignatures()" style="width:100%;padding:13px;background:var(--green);color:white;border:none;border-radius:10px;font-size:15px;cursor:pointer;font-weight:500">💾 儲存簽名</button>
+  <button onclick="collectAndSendToParent()" style="width:100%;padding:13px;background:var(--green);color:white;border:none;border-radius:10px;font-size:15px;cursor:pointer;font-weight:500;margin-top:8px">💾 儲存評估表</button>
   <div id="sign-msg" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:12px"></div>
-</div>
-
-<div id="tab-records" class="section">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:500">已儲存的紀錄</div><button onclick="exportAllRecords()" style="padding:6px 14px;border:1.5px solid var(--border);border-radius:8px;background:white;font-size:12px;color:var(--muted);cursor:pointer">📤 匯出全部</button></div>
-  <div id="records-list"></div>
-  <div id="records-empty" style="text-align:center;padding:40px;color:var(--muted);font-size:13px">尚無儲存的紀錄</div>
 </div>
 
 <div id="tab-result" class="section">
   <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#92400e">⚡ 點下方「產生填寫清單」後，每個欄位都有複製按鈕，貼到系統對應欄位即可。</div>
   <div class="copy-area" id="result-output"><div style="text-align:center;padding:30px;color:var(--muted)">請先點下方「產生填寫清單」</div></div>
 </div>
-
 </div>
 
 <div class="bottom-bar">
   <button class="reset-btn" onclick="resetForm()">重新填寫</button>
-
   <button class="gen-btn" onclick="generateResult()">📋 產生填寫清單</button>
 </div>
 
 <script>
-const API = '';
+const VISION_API_KEY = 'sk-uJgRXvVIWO6FfyqgcQJ4v9AqiYH21I3DA2Dx5cKXockkLS4r';
+const VISION_API_URL = 'https://api.vectorengine.ai/v1/messages';
+
 const ADL_Q = [
   {label:'進食',opts:[{t:'10分：自行在合理時間內取食',v:10},{t:'5分：需協助（穿脫輔具或湯匙）',v:5},{t:'0分：無法自行取食或耗時過長',v:0}]},
   {label:'個人衛生',opts:[{t:'5分：可自行洗手、刷牙、洗臉及梳頭',v:5},{t:'0分：需他人部份或完全協助',v:0}]},
@@ -258,9 +259,9 @@ const ADL_Q = [
   {label:'穿脫衣服',opts:[{t:'10分：能自己穿脫衣服、鞋子，自己扣釦、拉鍊或綁鞋帶',v:10},{t:'5分：在別人協助下，可自己完成一半以上的動作',v:5},{t:'0分：不會自己做',v:0}]},
   {label:'大便控制',opts:[{t:'10分：不會失禁，能自行灌腸或使用塞劑',v:10},{t:'5分：偶爾會失禁（每週不超過一次）',v:5},{t:'0分：失禁，無法自己控制且需他人處理',v:0}]},
   {label:'小便控制',opts:[{t:'10分：能自己控制不會有失禁，或能自行使用並清潔尿套、尿袋',v:10},{t:'5分：偶爾會失禁（每週不超過一次）',v:5},{t:'0分：失禁，無法自己控制且需他人處理',v:0}]},
-  {label:'平地行走',opts:[{t:'15分：使用或不使用輔具，皆可獨立行走50公尺以上',v:15},{t:'10分：需他人稍微扶持或口頭指導才能行走50公尺以上',v:10},{t:'5分：雖無法行走，但可以操作輪椅（含轉彎、進門及接近桌子、床沿）並可推行輪椅50公尺以上',v:5},{t:'0分：完全無法自行行走，需別人幫忙推輪椅',v:0}]},
+  {label:'平地行走',opts:[{t:'15分：使用或不使用輔具，皆可獨立行走50公尺以上',v:15},{t:'10分：需他人稍微扶持或口頭指導才能行走50公尺以上',v:10},{t:'5分：雖無法行走，但可以操作輪椅並可推行輪椅50公尺以上',v:5},{t:'0分：完全無法自行行走，需別人幫忙推輪椅',v:0}]},
   {label:'上下樓梯',opts:[{t:'10分：可自行上下樓梯，可使用扶手、柺杖等輔具',v:10},{t:'5分：需他人協助或監督才能上下樓梯',v:5},{t:'0分：無法上下樓梯',v:0}]},
-  {label:'上下床或椅子',opts:[{t:'15分：整個過程可獨立完成',v:15},{t:'10分：移動身體時需要稍微協助、給予提醒或安全監督',v:10},{t:'5分：可以自行坐起，但從床上坐起時或移動身體時需要他人協助',v:5},{t:'0分：不會自己移動',v:0}]},
+  {label:'上下床或椅子',opts:[{t:'15分：整個過程可獨立完成',v:15},{t:'10分：移動身體時需要稍微協助、給予提醒或安全監督',v:10},{t:'5分：可以自行坐起，但移動身體時需要他人協助',v:5},{t:'0分：不會自己移動',v:0}]},
 ];
 const IADL_Q = [
   {label:'使用電話的能力',opts:[{t:'3分：獨立使用電話，含查電話簿、撥號等',v:3},{t:'2分：僅可撥熟悉的電話號碼',v:2},{t:'1分：僅會接電話，不會撥電話',v:1},{t:'0分：完全不會使用電話或不適用',v:0}]},
@@ -324,10 +325,10 @@ function toggleCheck(key,v,btn){
   btn.classList.toggle('selected');
 }
 
-function addDrug(){ drugs.push({name:'',dose:'',freq:'',way:''}); renderDrugs(); }
+function addDrug(d){ drugs.push(d||{name:'',dose:'',freq:'',way:''}); renderDrugs(); }
 function renderDrugs(){
   const el=document.getElementById('drug-list');
-  el.innerHTML=drugs.map((d,i)=>`<div class="drug-row"><input placeholder="藥名" value="${d.name}" oninput="drugs[${i}].name=this.value"><input placeholder="劑量" value="${d.dose}" oninput="drugs[${i}].dose=this.value"><input placeholder="頻率" value="${d.freq}" oninput="drugs[${i}].freq=this.value"><input placeholder="途徑" value="${d.way}" oninput="drugs[${i}].way=this.value"><button class="del-btn" onclick="drugs.splice(${i},1);renderDrugs()">×</button></div>`).join('');
+  el.innerHTML=drugs.map((d,i)=>`<div class="drug-row"><input placeholder="藥名" value="${d.name||''}" oninput="drugs[${i}].name=this.value"><input placeholder="劑量" value="${d.dose||''}" oninput="drugs[${i}].dose=this.value"><input placeholder="頻率" value="${d.freq||''}" oninput="drugs[${i}].freq=this.value"><input placeholder="途徑" value="${d.way||''}" oninput="drugs[${i}].way=this.value"><button class="del-btn" onclick="drugs.splice(${i},1);renderDrugs()">×</button></div>`).join('');
 }
 
 function calcBMI(){
@@ -336,61 +337,100 @@ function calcBMI(){
   document.getElementById('bmi-val').textContent = bmi;
 }
 
-let _cachedRecords = [];
-async function renderRecords(){
-  const list=document.getElementById('records-list'), empty=document.getElementById('records-empty');
-  list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">載入中...</div>';
+function setOcrStatus(type, msg) {
+  const el = document.getElementById('ocr-status');
+  el.className = 'ocr-status ' + type;
+  el.textContent = msg;
+}
+
+async function handleDrugImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // 顯示預覽
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('drug-preview-img').src = e.target.result;
+    document.getElementById('drug-preview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+
+  setOcrStatus('loading', '🔍 辨識中，請稍候...');
+
   try {
-    const res=await fetch('/api/records'); _cachedRecords=await res.json();
-    if(_cachedRecords.length===0){ list.innerHTML=''; empty.style.display='block'; return; }
-    empty.style.display='none';
-    list.innerHTML=_cachedRecords.map((r,i)=>`
-      <div class="card"><div class="card-body">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div><b>${r.case?.name||'未知'}</b> <small style="color:var(--muted)">${r.savedAt||''}</small></div>
-          <div style="display:flex;gap:5px">
-            <button onclick="viewRecord(${i})" style="padding:4px 8px;border:1px solid var(--blue);border-radius:4px;background:var(--blue-light);color:var(--blue);font-size:11px;cursor:pointer">📋 查看</button>
-            <button onclick="downloadSigs(${i})" style="padding:4px 8px;border:1px solid var(--green);border-radius:4px;background:var(--green-light);color:var(--green);font-size:11px;cursor:pointer">✍️ 下載簽名</button>
-            <button onclick="deleteRecord('${r._id}')" style="padding:4px 8px;border:1px solid var(--red);border-radius:4px;background:#fff5f5;color:var(--red);font-size:11px;cursor:pointer">刪除</button>
-          </div>
-        </div>
-        <div style="font-size:12px;color:var(--muted)">ADL: ${r.adl||0} | IADL: ${r.iadl||0} | ${r.case?.district||''}</div>
-      </div></div>`).join('');
-  } catch(e){ list.innerHTML='載入失敗'; }
+    // 轉 base64
+    const base64 = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+    const mediaType = file.type || 'image/jpeg';
+
+    const response = await fetch(VISION_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': VISION_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mediaType, data: base64 }
+            },
+            {
+              type: 'text',
+              text: `請辨識這張藥袋圖片中的藥物資訊，以 JSON 陣列回傳，格式如下，只回傳 JSON 不要其他文字：
+[{"name":"藥名","dose":"劑量（如 1顆、5mg）","freq":"頻率（如 每日3次、飯後）","way":"途徑（如 口服、外用）"}]
+如果看不到藥物資訊，回傳空陣列 []。`
+            }
+          ]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('API 請求失敗: ' + response.status);
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '[]';
+
+    let parsed = [];
+    try {
+      const clean = text.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch(e) {
+      throw new Error('無法解析辨識結果');
+    }
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      setOcrStatus('error', '⚠️ 未能辨識到藥物資訊，請手動輸入');
+      return;
+    }
+
+    // 追加到藥物列表
+    parsed.forEach(d => addDrug(d));
+    setOcrStatus('success', `✓ 成功辨識 ${parsed.length} 筆藥物資料`);
+
+    // 滾動到藥物列表
+    document.getElementById('drug-list').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  } catch(e) {
+    console.error('OCR error:', e);
+    setOcrStatus('error', '⚠️ 辨識失敗：' + e.message);
+  }
+
+  // 清除 input 以便重新選擇同一張圖
+  input.value = '';
 }
-
-function viewRecord(i){
-  const r=_cachedRecords[i]; if(!r)return;
-  alert('已載入紀錄，請切換到「產生結果」分頁查看內容。');
-  // 此處可擴充將紀錄內容填回表單或直接顯示在結果頁
-}
-
-function downloadSigs(i){
-  const r=_cachedRecords[i]; if(!r||!r.signatures)return;
-  const name=r.case?.name||'未知'; let count=0;
-  if(r.signatures.client){ const a=document.createElement('a'); a.href=r.signatures.client; a.download=`個案簽名_${name}.png`; a.click(); count++; }
-  setTimeout(()=>{
-    if(r.signatures.worker){ const a=document.createElement('a'); a.href=r.signatures.worker; a.download=`家訪員簽名_${name}.png`; a.click(); count++; }
-    if(count===0) alert('此紀錄無簽名檔');
-  },300);
-}
-
-async function deleteRecord(id){ if(!confirm('確定刪除？'))return; await fetch('/api/records/'+id,{method:'DELETE'}); renderRecords(); }
-
-async function saveRecord(){
-  const v={ bp:document.getElementById('bp').value, hr:document.getElementById('hr').value, rr:document.getElementById('rr').value, temp:document.getElementById('temp').value, weight:document.getElementById('weight').value, bmi:document.getElementById('bmi-val').textContent, bs:document.getElementById('blood_sugar').value };
-  const cSig=isCanvasBlank('sig-client')?null:document.getElementById('sig-client').toDataURL('image/png');
-  const wSig=isCanvasBlank('sig-worker')?null:document.getElementById('sig-worker').toDataURL('image/png');
-  const record={ adl:adlTotal, iadl:iadlTotal, state, drugs, vitals:v, texts:{visit_note:document.getElementById('visit_note').value, medical_note:document.getElementById('medical_note').value}, case:{name:document.getElementById('case_name').value, phone:document.getElementById('case_phone').value, id:document.getElementById('case_id').value, age:document.getElementById('case_age').value, gender:document.getElementById('case_gender').value, district:document.getElementById('case_district').value}, signatures:{client:cSig, worker:wSig}, savedAt:new Date().toLocaleString('zh-TW') };
-  try {
-    const res=await fetch('/api/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
-    const data=await res.json(); if(data.ok){ alert('✓ 已儲存到雲端！'); renderRecords(); } else throw new Error(data.error);
-  } catch(e){ alert('儲存失敗：'+e.message); }
-}
-
-window.saveAssessmentToParent = function() {
-  saveRecord();
-};
 
 function resetForm(){ location.reload(); }
 
@@ -407,50 +447,153 @@ function initCanvas(id){
   c.addEventListener('touchmove',e=>{e.preventDefault(); if(!drawing)return; const [x,y]=pos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(x,y); ctx.stroke(); [lx,ly]=[x,y];},{passive:false});
 }
 function clearCanvas(id){ const c=document.getElementById(id); c.getContext('2d').clearRect(0,0,c.width,c.height); }
-function isCanvasBlank(id){ const c=document.getElementById(id); const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data; return !d.some(v=>v!==0); }
+function isCanvasBlank(id){ const c=document.getElementById(id); if(!c)return true; const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data; return !d.some(v=>v!==0); }
 
-let saveMode='firebase';
-function setSaveMode(m){ saveMode=m; document.getElementById('mode-firebase').classList.toggle('selected',m==='firebase'); document.getElementById('mode-download').classList.toggle('selected',m==='download'); document.getElementById('cfg-firebase').style.display=m==='firebase'?'block':'none'; document.getElementById('cfg-download').style.display=m==='download'?'block':'none'; }
+// ===== postMessage 與父頁面溝通 =====
 
-async function saveSignatures(){
-  if(saveMode==='download'){
-    const ts=Date.now(); let count=0;
-    if(!isCanvasBlank('sig-client')){ const a=document.createElement('a'); a.href=document.getElementById('sig-client').toDataURL('image/png'); a.download=`個案簽名_${ts}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a); count++; }
-    setTimeout(()=>{
-      if(!isCanvasBlank('sig-worker')){ const a=document.createElement('a'); a.href=document.getElementById('sig-worker').toDataURL('image/png'); a.download=`家訪員簽名_${ts}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a); count++; }
-      if(count>0) alert(`✓ 已下載 ${count} 個簽名檔`);
-    },300);
-  } else if(saveMode==='firebase'){
-    const docId = await saveToFirebase();
-    if(docId){
-      const clientSig = document.getElementById('sig-client').toDataURL('image/png');
-      const workerSig = document.getElementById('sig-worker').toDataURL('image/png');
-      await uploadSignaturesToFirebase(docId, clientSig, workerSig);
-    }
+function collectAndSendToParent() {
+  const cSig = isCanvasBlank('sig-client') ? null : document.getElementById('sig-client').toDataURL('image/png');
+  const wSig = isCanvasBlank('sig-worker') ? null : document.getElementById('sig-worker').toDataURL('image/png');
+
+  const payload = {
+    state: { ...state },
+    drugs: [...drugs],
+    adlTotal,
+    iadlTotal,
+    case_name: document.getElementById('case_name').value,
+    case_phone: document.getElementById('case_phone').value,
+    case_id: document.getElementById('case_id').value,
+    case_age: document.getElementById('case_age').value,
+    case_gender: document.getElementById('case_gender').value,
+    case_district: document.getElementById('case_district').value,
+    bp: document.getElementById('bp').value,
+    hr: document.getElementById('hr').value,
+    rr: document.getElementById('rr').value,
+    temp: document.getElementById('temp').value,
+    height: document.getElementById('height').value,
+    weight: document.getElementById('weight').value,
+    blood_sugar: document.getElementById('blood_sugar').value,
+    visit_note: document.getElementById('visit_note').value,
+    medical_note: document.getElementById('medical_note').value,
+    hosp_reason: document.getElementById('hosp_reason') ? document.getElementById('hosp_reason').value : '',
+    surgery_name: document.getElementById('surgery_name') ? document.getElementById('surgery_name').value : '',
+    signatures: { client: cSig, worker: wSig },
+  };
+
+  window.parent.postMessage({ type: 'saveAssessment', payload }, '*');
+
+  // 顯示儲存中提示
+  const msg = document.getElementById('sign-msg');
+  msg.style.display = 'block';
+  msg.style.background = '#fffbeb';
+  msg.style.border = '1px solid #fcd34d';
+  msg.style.color = '#92400e';
+  msg.textContent = '⏳ 儲存中...';
+}
+
+// 接收父頁面傳來的資料
+window.addEventListener('message', function(event) {
+  if (event.data.type === 'loadAssessment' && event.data.payload) {
+    loadFromPayload(event.data.payload);
   }
+  if (event.data.type === 'saveSuccess') {
+    const msg = document.getElementById('sign-msg');
+    msg.style.display = 'block';
+    msg.style.background = 'var(--green-light)';
+    msg.style.border = '1px solid #86efac';
+    msg.style.color = '#0a5e47';
+    msg.textContent = '✓ 評估表已儲存';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+  }
+});
+
+function loadFromPayload(d) {
+  if (!d) return;
+
+  // 還原 state
+  if (d.state) Object.assign(state, d.state);
+  if (d.drugs) { drugs = d.drugs; }
+
+  // 重新渲染所有選項（帶入 state）
+  renderADL(); renderIADL();
+  renderRadio('education',['不識字','識字但未就學','小學','國中','高中/職','專科/大學','研究所以上'],'education');
+  renderRadio('marital',['未婚','有偶','喪偶','離婚','分居'],'marital');
+  renderCheckbox('language',['國語','台語','客語','原住民語','英語','其他'],'language');
+  renderRadio('welfare',['一般','中低收入戶','低收入戶','身心障礙','榮民/榮眷','其他'],'welfare');
+  renderRadio('religion',['無','佛教','道教','天主教','基督教','民間信仰','其他'],'religion');
+  renderCheckbox('income',['自己工作','配偶','子女','親友','政府補助','退休金/保險','其他'],'income');
+  renderRadio('consciousness',['清醒','驚醒','迷朦','混亂','嗜睡','呆滯','木僵','昏迷'],'consciousness');
+  renderRadio('emotion',['平穩','焦慮','煩躁','激動','謾罵','攻擊行為','淡漠','無法評估'],'emotion');
+  renderRadio('vision',['正常','模糊','失明','無法評估','老花'],'vision');
+  renderRadio('hearing',['正常','重聽（單）','重聽（雙）','失聰（單）','失聰（雙）','無法評估'],'hearing',() => {
+    const show=['重聽（單）','重聽（雙）','失聰（單）','失聰（雙）'].includes(state.hearing);
+    document.getElementById('hearing-aid-box').style.display=show?'block':'none';
+    if(show) renderRadio('hearing_aid',['有','無'],'hearing_aid');
+  });
+  renderRadio('breathing',['正常','氣喘','氣切','喘息聲','氧氣使用'],'breathing');
+  renderRadio('communication',['正常','含糊','失語','肢體表達','無法評估'],'communication');
+  renderRadio('chewing',['正常','缺牙','無法評估'],'chewing');
+  renderRadio('swallowing',['正常','偶嗆食(1:10)','易嗆食(3-4:10)','無法吞嚥','無法評估'],'swallowing');
+  renderRadio('denture',['無','固定','活動'],'denture');
+  renderRadio('digestion',['正常','便秘','灌腸','大便失禁'],'digestion');
+  renderRadio('urinary',['正常','多尿','少尿','頻尿','尿滯留','尿布使用','尿管留置'],'urinary');
+  renderRadio('activity',['完全臥床','可離床活動'],'activity',() => {
+    document.getElementById('activity-bedridden').style.display=state.activity==='完全臥床'?'block':'none';
+    document.getElementById('activity-mobile').style.display=state.activity==='可離床活動'?'block':'none';
+    if(state.activity==='完全臥床') renderRadio('activity_bedridden',['自行','部分協助','完全協助'],'activity_bedridden');
+    if(state.activity==='可離床活動') renderRadio('activity_gait',['穩定','不穩定'],'activity_gait');
+  });
+  renderRadio('walking',['自行','扶持','無法行走'],'walking');
+  renderCheckbox('aids',['無','輪椅','柺杖','義肢','助行器','其他'],'aids');
+  renderCheckbox('diseases',['高血壓','心臟病','糖尿病','中風','精神疾病','巴金森氏症','失智症','慢性阻塞性肺疾病','氣喘','肺結核','B型肝炎','腎臟疾病','癌症','骨骼關節疾病','其他'],'diseases');
+  renderRadio('orientation',['人時地均清楚','其中一、二項清楚','三項均不正確','無法評估'],'orientation');
+  renderRadio('hospitalized',['有','無'],'hospitalized');
+  renderRadio('surgery',['有','無','不詳'],'surgery');
+  renderRadio('fall',['有','無','不詳'],'fall');
+  renderCheckbox('device-understanding',['主機通話','主機求救','子機求救','外出/返家','報安確認','GPS手錶','行動照護鑰'],'device_understanding');
+  renderRadio('blood-sugar-timing',['飯前','飯後','隨機'],'blood_sugar_timing');
+  renderDrugs();
+
+  // 還原文字欄位
+  const fields = ['case_name','case_phone','case_id','case_age','case_district','bp','hr','rr','temp','height','weight','blood_sugar','visit_note','medical_note','hosp_reason','surgery_name'];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && d[id] !== undefined && d[id] !== null) el.value = d[id];
+  });
+  if (d.case_gender) {
+    const el = document.getElementById('case_gender');
+    if (el) el.value = d.case_gender;
+  }
+
+  // 顯示住院/手術詳情
+  if (state.hospitalized === '有') document.getElementById('hosp-detail').style.display = 'block';
+  if (state.surgery === '有') document.getElementById('surgery-detail').style.display = 'block';
+
+  calcBMI();
+  updateScores();
+  console.log('✓ 資料已載入');
 }
 
 function generateResult(){
   showTab('result',document.querySelector('[onclick*="result"]'));
   const output=document.getElementById('result-output');
   let html='<div class="result-header"><div style="font-weight:500">📋 填寫清單</div><button class="copy-all-btn" onclick="copyAllResults()">📋 複製全部</button></div>';
-  
-  html+='<div class="copy-item"><div class="copy-label">個案姓名</div><div class="copy-val" id="r-name">'+document.getElementById('case_name').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">電話</div><div class="copy-val" id="r-phone">'+document.getElementById('case_phone').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">ADL 分數</div><div class="copy-val" id="r-adl">'+adlTotal+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">IADL 分數</div><div class="copy-val" id="r-iadl">'+iadlTotal+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">身高 (cm)</div><div class="copy-val" id="r-height">'+document.getElementById('height').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">體重 (kg)</div><div class="copy-val" id="r-weight">'+document.getElementById('weight').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">BMI</div><div class="copy-val" id="r-bmi">'+document.getElementById('bmi-val').textContent+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">血壓</div><div class="copy-val" id="r-bp">'+document.getElementById('bp').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">心跳</div><div class="copy-val" id="r-hr">'+document.getElementById('hr').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">呼吸</div><div class="copy-val" id="r-rr">'+document.getElementById('rr').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">體溫</div><div class="copy-val" id="r-temp">'+document.getElementById('temp').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">血糖</div><div class="copy-val" id="r-bs">'+document.getElementById('blood_sugar').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">用藥</div><div class="copy-val" id="r-drugs">'+drugs.map(d=>d.name+' '+d.dose+' '+d.freq).join(', ')+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">訪視備註</div><div class="copy-val" id="r-visit">'+document.getElementById('visit_note').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  html+='<div class="copy-item"><div class="copy-label">醫療建議</div><div class="copy-val" id="r-medical">'+document.getElementById('medical_note').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
-  
+  const row=(label,val)=>`<div class="copy-item"><div class="copy-label">${label}</div><div class="copy-val">${val||''}</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>`;
+  html+=row('個案姓名',document.getElementById('case_name').value);
+  html+=row('電話',document.getElementById('case_phone').value);
+  html+=row('ADL 分數',adlTotal);
+  html+=row('IADL 分數',iadlTotal);
+  html+=row('身高 (cm)',document.getElementById('height').value);
+  html+=row('體重 (kg)',document.getElementById('weight').value);
+  html+=row('BMI',document.getElementById('bmi-val').textContent);
+  html+=row('血壓',document.getElementById('bp').value);
+  html+=row('心跳',document.getElementById('hr').value);
+  html+=row('呼吸',document.getElementById('rr').value);
+  html+=row('體溫',document.getElementById('temp').value);
+  html+=row('血糖',document.getElementById('blood_sugar').value);
+  html+=row('用藥',drugs.map(d=>[d.name,d.dose,d.freq,d.way].filter(Boolean).join(' ')).join('；'));
+  html+=row('訪視備註',document.getElementById('visit_note').value);
+  html+=row('醫療建議',document.getElementById('medical_note').value);
   output.innerHTML=html;
 }
 
@@ -474,24 +617,6 @@ function copyAllResults(){
 
 function init(){
   renderADL(); renderIADL();
-  
-  // 頁面加載時自動載入上次的評估表資料
-  setTimeout(() => {
-    const caseName = document.getElementById('case_name').value;
-    if (caseName) {
-      loadFromFirebase(caseName);
-    }
-  }, 500);
-  
-  // 設定自動保存功能 - 每當表單改變時自動保存
-  setTimeout(() => {
-    const inputs = document.querySelectorAll('input, textarea, select');
-    inputs.forEach(input => {
-      input.addEventListener('change', () => {
-        autoSaveToFirebase();
-      });
-    });
-  }, 1000);
   renderRadio('education',['不識字','識字但未就學','小學','國中','高中/職','專科/大學','研究所以上'],'education');
   renderRadio('marital',['未婚','有偶','喪偶','離婚','分居'],'marital');
   renderCheckbox('language',['國語','台語','客語','原住民語','英語','其他'],'language');
@@ -530,149 +655,6 @@ function init(){
   renderRadio('blood-sugar-timing',['飯前','飯後','隨機'],'blood_sugar_timing');
 }
 init();
-
-// Firebase 初始化
-const firebaseConfig = {
-  apiKey: "AIzaSyBnZ5Aq-z0Yp8K3L9M2N3O4P5Q6R7S8T9U",
-  authDomain: "skss-975e9.firebaseapp.com",
-  projectId: "skss-975e9",
-  storageBucket: "skss-975e9.appspot.com",
-  messagingSenderId: "107503085220920563815",
-  appId: "1:107503085220920563815:web:a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
-};
-
-let db, storage;
-try {
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore();
-  storage = firebase.storage();
-  console.log('✓ Firebase 已連接');
-} catch (e) {
-  console.error('Firebase 初始化失敗:', e);
-}
-
-// 自動保存評估表資料到 Firebase（不包括簽名）
-async function autoSaveToFirebase() {
-  if (!db) return false;
-  
-  try {
-    const assessmentData = {
-      case_name: document.getElementById('case_name').value,
-      case_phone: document.getElementById('case_phone').value,
-      ...state,
-      savedAt: new Date().toISOString(),
-      timestamp: new Date().getTime(),
-      autoSaved: true
-    };
-    
-    // 查詢是否已有該個案的評估表
-    const snapshot = await db.collection('assessments')
-      .where('case_name', '==', assessmentData.case_name)
-      .orderBy('timestamp', 'desc')
-      .limit(1)
-      .get();
-    
-    if (!snapshot.empty) {
-      // 更新現有記錄
-      await snapshot.docs[0].ref.update(assessmentData);
-    } else {
-      // 建立新記錄
-      await db.collection('assessments').add(assessmentData);
-    }
-    
-    console.log('✓ 資料已自動保存到 Firebase');
-    return true;
-  } catch (e) {
-    console.error('自動保存失敗:', e);
-    return false;
-  }
-}
-
-// 保存評估表資料到 Firebase
-async function saveToFirebase() {
-  if (!db) {
-    alert('Firebase 未連接');
-    return false;
-  }
-  
-  try {
-    const assessmentData = {
-      case_name: document.getElementById('case_name').value,
-      case_phone: document.getElementById('case_phone').value,
-      ...state,
-      savedAt: new Date().toISOString(),
-      timestamp: new Date().getTime()
-    };
-    
-    const docRef = await db.collection('assessments').add(assessmentData);
-    console.log('✓ 資料已保存到 Firebase:', docRef.id);
-    return docRef.id;
-  } catch (e) {
-    console.error('保存失敗:', e);
-    alert('保存失敗: ' + e.message);
-    return false;
-  }
-}
-
-// 從 Firebase 載入評估表資料
-async function loadFromFirebase(caseId) {
-  if (!db) return;
-  
-  try {
-    const snapshot = await db.collection('assessments')
-      .where('case_name', '==', caseId)
-      .orderBy('savedAt', 'desc')
-      .limit(1)
-      .get();
-    
-    if (!snapshot.empty) {
-      const data = snapshot.docs[0].data();
-      Object.keys(data).forEach(key => {
-        if (key !== 'savedAt' && key !== 'timestamp') {
-          state[key] = data[key];
-          const elem = document.getElementById(key);
-          if (elem) {
-            if (elem.type === 'checkbox') {
-              elem.checked = data[key];
-            } else {
-              elem.value = data[key];
-            }
-          }
-        }
-      });
-      console.log('✓ 資料已從 Firebase 載入');
-      return true;
-    }
-  } catch (e) {
-    console.error('載入失敗:', e);
-  }
-  return false;
-}
-
-
-
-// 上傳簽名圖片到 Firebase Storage
-async function uploadSignaturesToFirebase(docId, clientSig, workerSig) {
-  if (!storage) return;
-  
-  try {
-    const timestamp = new Date().getTime();
-    
-    // 上傳個案簽名
-    const clientRef = storage.ref(`signatures/${docId}/client_${timestamp}.png`);
-    await clientRef.putString(clientSig, 'data_url');
-    
-    // 上傳家訪員簽名
-    const workerRef = storage.ref(`signatures/${docId}/worker_${timestamp}.png`);
-    await workerRef.putString(workerSig, 'data_url');
-    
-    console.log('✓ 簽名已上傳到 Firebase Storage');
-    alert('✓ 評估表和簽名已保存到雲端');
-  } catch (e) {
-    console.error('上傳簽名失敗:', e);
-    alert('上傳簽名失敗: ' + e.message);
-  }
-}
 </script>
 </body>
 </html>
