@@ -93,7 +93,6 @@ const waypointStr = waypoints
   .join('|');
 
 const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&origin=${origin?.lat},${origin?.lng}&destination=${destination?.lat},${destination?.lng}${waypointStr ? `&waypoints=${waypointStr}` : ''}`;
-
         setMapUrl(mapsUrl);
         toast.success("路線規劃完成！");
       } else {
