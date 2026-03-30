@@ -85,16 +85,14 @@ export default function RoutePlannerPage() {
         });
 
       // 構建 Google Maps URL
-      const markers = casesToRoute
-        .map((c, i) => {
-          const wp = waypoints[i];
-          return `markers=label:${i + 1}|${wp?.lat},${wp?.lng}`;
-        })
-        .join("&");
+      const origin = waypoints[0];
+const destination = waypoints[waypoints.length - 1];
+const waypointStr = waypoints
+  .slice(1, -1)
+  .map(wp => `${wp.lat},${wp.lng}`)
+  .join('|');
 
-        const origin = waypoints[0];
-        const destination = waypoints[waypoints.length - 1];
-        const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&origin=${origin?.lat},${origin?.lng}&destination=${destination?.lat},${destination?.lng}&${markers}`;
+const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&origin=${origin?.lat},${origin?.lng}&destination=${destination?.lat},${destination?.lng}${waypointStr ? `&waypoints=${waypointStr}` : ''}`;
 
         setMapUrl(mapsUrl);
         toast.success("路線規劃完成！");
