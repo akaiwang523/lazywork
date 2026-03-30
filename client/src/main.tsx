@@ -18,7 +18,11 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  // 1. 註解掉下面這行，這樣就不會被踢到 403 頁面了
+  // window.location.href = getLoginUrl();
+
+  // 2. 增加這行，讓你在瀏覽器按 F12 可以看到它確實有在運作
+  console.log("🛠️ 開發模式：偵測到未登入，已攔截轉跳請求。");
 };
 
 queryClient.getQueryCache().subscribe(event => {
