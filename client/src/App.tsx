@@ -1,3 +1,4 @@
+import LoginPage from "./pages/LoginPage";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,7 +13,7 @@ import RoutePlannerPage from "./pages/RoutePlannerPage";
 import SchedulePage from "./pages/SchedulePage";
 import MissedCasesPage from "./pages/MissedCasesPage";
 import AssessmentPage from "./pages/AssessmentPage";
-import {
+
   Menu,
   X,
   LogOut,
