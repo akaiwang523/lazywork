@@ -44,15 +44,15 @@ export default function Home() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-slate-300 mb-4">請登入以繼續</p>
-        </div>
-      </div>
-    );
-  }
+  // if (!user) { 
+  //   return (
+  //     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+  //       <div className="text-center">
+  //         <p className="text-slate-300 mb-4">請登入以繼續</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const tomorrowStr = format(new Date(Date.now() + 86400000), "yyyy-MM-dd");
