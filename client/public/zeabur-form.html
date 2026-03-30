@@ -496,6 +496,9 @@ window.addEventListener('message', function(event) {
   if (event.data.type === 'loadAssessment' && event.data.payload) {
     loadFromPayload(event.data.payload);
   }
+  if (event.data.type === 'collectAndSend') {
+    collectAndSendToParent();
+  }
   if (event.data.type === 'saveSuccess') {
     const msg = document.getElementById('sign-msg');
     msg.style.display = 'block';
