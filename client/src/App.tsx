@@ -1,4 +1,3 @@
-import LoginPage from "./pages/LoginPage";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,13 +6,14 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import LoginPage from "./pages/LoginPage";
 import CasesListPage from "./pages/CasesListPage";
 import ImportPage from "./pages/ImportPage";
 import RoutePlannerPage from "./pages/RoutePlannerPage";
 import SchedulePage from "./pages/SchedulePage";
 import MissedCasesPage from "./pages/MissedCasesPage";
 import AssessmentPage from "./pages/AssessmentPage";
-
+import {
   Menu,
   X,
   LogOut,
@@ -26,11 +26,11 @@ import AssessmentPage from "./pages/AssessmentPage";
   FileUp,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "./_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { Loader2 } from "lucide-react";
 
 function Router() {
   return (
@@ -90,15 +90,12 @@ function Sidebar({
 
   return (
     <>
-      {/* 手機版背景遮罩 */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
-
-      {/* 側邊欄 */}
       <div
         className={`
           fixed left-0 top-0 h-full bg-slate-900 border-r border-slate-800
@@ -109,25 +106,21 @@ function Sidebar({
           w-56
         `}
       >
-        {/* 標題列 */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-800 h-14 flex-shrink-0">
           {!collapsed && (
             <span className="text-sm font-medium text-slate-400 truncate">家訪管理系統</span>
           )}
-          {/* 桌面版收合按鈕 */}
           <button
             onClick={onToggleCollapse}
             className="hidden lg:flex text-slate-500 hover:text-slate-300 hover:bg-slate-800 p-1 rounded-md transition-colors ml-auto"
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
-          {/* 手機版關閉按鈕 */}
           <button onClick={onClose} className="lg:hidden text-slate-400 hover:text-slate-100">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* 選單 */}
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -153,7 +146,6 @@ function Sidebar({
           })}
         </nav>
 
-        {/* 登出 */}
         <div className="p-2 border-t border-slate-800 flex-shrink-0">
           <button
             onClick={handleLogout}
@@ -192,7 +184,6 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <div className="flex h-screen bg-slate-950">
-            {/* 側邊欄 */}
             {user && (
               <Sidebar
                 isOpen={sidebarOpen}
@@ -201,10 +192,7 @@ function App() {
                 onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
               />
             )}
-
-            {/* 主內容區 */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-              {/* 手機版頂部導航 */}
               {user && (
                 <div className="bg-slate-900/50 border-b border-slate-800 backdrop-blur-sm px-4 py-3 flex items-center justify-between lg:hidden flex-shrink-0">
                   <h1 className="text-lg font-bold text-slate-100">家訪管理系統</h1>
@@ -216,8 +204,6 @@ function App() {
                   </button>
                 </div>
               )}
-
-              {/* 頁面內容 */}
               <div className="flex-1 overflow-auto">
                 <Router />
               </div>
