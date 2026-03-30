@@ -1,0 +1,15 @@
+{
+  "query": "SELECT clientName, district, address FROM cases LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user cumuvenGmWLCv3D.root --database GVyUbjiV5SKYzvJXbAkNzD --execute SELECT clientName, district, address FROM cases LIMIT 1;",
+  "rows": [
+    {
+      "clientName": "呂瑞成",
+      "district": "中西區",
+      "address": "法華里健康路一段100巷10號"
+    }
+  ],
+  "messages": [],
+  "stdout": "clientName\tdistrict\taddress\n呂瑞成\t中西區\t法華里健康路一段100巷10號\n",
+  "stderr": "",
+  "execution_time_ms": 1629
+}

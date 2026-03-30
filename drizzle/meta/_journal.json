@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1774447361261,
+      "tag": "0000_tiny_zeigeist",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1774595140560,
+      "tag": "0001_nappy_moira_mactaggert",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1774598280938,
+      "tag": "0002_military_ozymandias",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1774599658569,
+      "tag": "0003_blue_hellfire_club",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1774767917400,
+      "tag": "0004_material_caretaker",
+      "breakpoints": true
+    }
+  ]
+}

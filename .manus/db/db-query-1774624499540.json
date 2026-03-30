@@ -1,0 +1,28 @@
+{
+  "query": "SELECT clientName, district, address, scheduledVisitDate FROM cases WHERE visitStatus = 'unvisited' AND scheduledVisitDate IS NOT NULL ORDER BY scheduledVisitDate LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user cumuvenGmWLCv3D.root --database GVyUbjiV5SKYzvJXbAkNzD --execute SELECT clientName, district, address, scheduledVisitDate FROM cases WHERE visitStatus = 'unvisited' AND scheduledVisitDate IS NOT NULL ORDER BY scheduledVisitDate LIMIT 5;",
+  "rows": [
+    {
+      "clientName": "周國泰",
+      "district": "安南區",
+      "address": "",
+      "scheduledVisitDate": "2026-03-26 16:00:00"
+    },
+    {
+      "clientName": "陳鴻龍",
+      "district": "中西區",
+      "address": "府前一街169號5樓之2",
+      "scheduledVisitDate": "2026-03-27 00:00:00"
+    },
+    {
+      "clientName": "周國泰",
+      "district": "安南區",
+      "address": "",
+      "scheduledVisitDate": "2026-03-27 16:00:00"
+    }
+  ],
+  "messages": [],
+  "stdout": "clientName\tdistrict\taddress\tscheduledVisitDate\n周國泰\t安南區\t\t2026-03-26 16:00:00\n陳鴻龍\t中西區\t府前一街169號5樓之2\t2026-03-27 00:00:00\n周國泰\t安南區\t\t2026-03-27 16:00:00\n",
+  "stderr": "",
+  "execution_time_ms": 1530
+}

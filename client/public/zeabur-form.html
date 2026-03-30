@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>家訪填寫助手</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--blue:#2c7be5;--blue-light:#e8f1fd;--green:#00b388;--green-light:#e6f9f4;--gray:#f5f6f8;--border:#e2e6ea;--text:#2d3748;--muted:#718096;--red:#e53e3e;--orange:#ed8936}
+body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--text);font-size:15px;padding-bottom:80px}
+.header{background:var(--blue);color:white;padding:14px 20px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.header h1{font-size:16px;font-weight:500}
+.header-right{display:flex;gap:8px;align-items:center}
+.score-pill{background:rgba(255,255,255,.2);border-radius:20px;padding:4px 12px;font-size:13px}
+.tab-nav{background:white;display:flex;overflow-x:auto;border-bottom:2px solid var(--border);position:sticky;top:52px;z-index:90;scrollbar-width:none}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-btn{padding:12px 16px;font-size:13px;white-space:nowrap;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;font-family:inherit;transition:.15s}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:500}
+.content{max-width:900px;margin:0 auto;padding:16px}
+.section{display:none}.section.active{display:block}
+.card{background:white;border-radius:12px;border:1px solid var(--border);margin-bottom:14px;overflow:hidden}
+.card-head{background:var(--gray);padding:12px 16px;font-weight:500;font-size:14px;display:flex;align-items:center;justify-content:space-between}
+.card-body{padding:14px 16px}
+.score-box{background:var(--blue-light);border:1px solid #c3d9fb;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
+.score-num{font-size:36px;font-weight:700;color:var(--blue);line-height:1}
+.score-label{font-size:13px;color:var(--muted)}
+.score-max{font-size:14px;color:var(--muted)}
+.q-row{padding:12px 0;border-bottom:1px solid var(--border)}
+.q-row:last-child{border-bottom:none}
+.q-label{font-weight:500;font-size:14px;margin-bottom:10px;color:var(--text)}
+.options{display:flex;flex-wrap:wrap;gap:8px}
+.opt-btn{padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-size:13px;font-family:inherit;color:var(--text);transition:.15s;line-height:1.4;text-align:left}
+.opt-btn:hover{border-color:var(--blue);background:var(--blue-light)}
+.opt-btn.selected{border-color:var(--blue);background:var(--blue-light);color:var(--blue);font-weight:500}
+.opt-btn .pts{font-size:11px;display:block;color:var(--muted);margin-top:2px}
+.opt-btn.selected .pts{color:var(--blue)}
+.check-group{display:flex;flex-wrap:wrap;gap:8px}
+.check-btn{padding:7px 13px;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-size:13px;font-family:inherit;color:var(--text);transition:.15s}
+.check-btn:hover{border-color:var(--blue)}
+.check-btn.selected{border-color:var(--green);background:var(--green-light);color:#0a5e47;font-weight:500}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.field-row.single{grid-template-columns:1fr}
+.field-row.three{grid-template-columns:1fr 1fr 1fr}
+.field-group label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+.field-group input,.field-group textarea,.field-group select{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;color:var(--text);background:white}
+.field-group input:focus,.field-group textarea:focus{outline:none;border-color:var(--blue)}
+.field-group textarea{min-height:80px;resize:vertical}
+.drug-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}
+.drug-row input{padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;width:100%}
+.del-btn{width:32px;height:36px;border:1px solid #fca5a5;border-radius:8px;background:#fef2f2;color:var(--red);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.add-btn{padding:8px 16px;border:1.5px dashed var(--border);border-radius:8px;background:white;color:var(--muted);cursor:pointer;font-size:13px;font-family:inherit;width:100%;margin-top:4px}
+.add-btn:hover{border-color:var(--blue);color:var(--blue)}
+.radio-row{display:flex;flex-wrap:wrap;gap:8px}
+.radio-btn{padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-size:13px;font-family:inherit;transition:.15s}
+.radio-btn.selected{border-color:var(--blue);background:var(--blue-light);color:var(--blue);font-weight:500}
+.copy-area{background:white;border-radius:12px;border:1px solid var(--border);padding:16px;margin-bottom:14px}
+.copy-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.copy-item:last-child{border-bottom:none}
+.copy-label{font-size:12px;color:var(--muted);min-width:100px;padding-top:4px}
+.copy-val{flex:1;font-size:13px;line-height:1.5;color:var(--text);word-break:break-all}
+.copy-btn{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:white;cursor:pointer;font-size:12px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+.copy-btn:hover{background:var(--blue-light);border-color:var(--blue);color:var(--blue)}
+.copy-btn.ok{background:var(--green-light);border-color:var(--green);color:#0a5e47}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);padding:12px 20px;display:flex;gap:10px;justify-content:center;z-index:100}
+.gen-btn{padding:12px 28px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:15px;font-family:inherit;cursor:pointer;font-weight:500}
+.gen-btn:hover{background:#1a68d1}
+.reset-btn{padding:12px 20px;background:white;color:var(--muted);border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;cursor:pointer}
+.vitals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.vital-group label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+.vital-group input{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-family:inherit;text-align:center}
+.vital-group input:focus{outline:none;border-color:var(--blue)}
+.bmi-display{background:var(--gray);border-radius:8px;padding:9px 10px;text-align:center;font-size:15px;color:var(--muted)}
+#result-section .copy-area{max-height:60vh;overflow-y:auto}
+.result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.copy-all-btn{padding:8px 16px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+@media(max-width:600px){
+  .field-row{grid-template-columns:1fr}
+  .field-row.three{grid-template-columns:1fr 1fr}
+  .drug-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto}
+  .drug-row .del-btn{grid-column:span 2;width:100%}
+  .opt-btn{font-size:12px;padding:7px 10px}
+}
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js"></script>
+</head>
+<body>
+
+<div class="header">
+  <h1>📋 家訪填寫助手</h1>
+  <div class="header-right">
+    <span class="score-pill">ADL: <b id="hdr-adl">-</b></span>
+    <span class="score-pill">IADL: <b id="hdr-iadl">-</b></span>
+  </div>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="showTab('adl',this)">巴氏量表</button>
+  <button class="tab-btn" onclick="showTab('iadl',this)">IADL</button>
+  <button class="tab-btn" onclick="showTab('basic',this)">基本資料</button>
+  <button class="tab-btn" onclick="showTab('body',this)">身體功能</button>
+  <button class="tab-btn" onclick="showTab('medical',this)">醫療狀況</button>
+  <button class="tab-btn" onclick="showTab('device',this)">設備了解</button>
+  <button class="tab-btn" onclick="showTab('vitals',this)">評估數據</button>
+  <button class="tab-btn" onclick="showTab('sign',this)">✍️ 簽名</button>
+  <button class="tab-btn" onclick="showTab('records',this);renderRecords()">📁 紀錄</button>
+  <button class="tab-btn" onclick="showTab('result',this)">📋 產生結果</button>
+</div>
+
+<div class="content">
+<div id="tab-adl" class="section active">
+  <div class="score-box">
+    <div><div class="score-num" id="adl-score">0</div><div class="score-max">/ 100 分</div></div>
+    <div><div class="score-label">巴氏量表 (ADL) 總分</div><div id="adl-level" style="margin-top:4px;font-size:13px;color:var(--muted)">請填寫以下各項</div></div>
+  </div>
+  <div class="card"><div class="card-body" id="adl-questions"></div></div>
+</div>
+
+<div id="tab-iadl" class="section">
+  <div class="score-box" style="background:#f0fdf4;border-color:#86efac">
+    <div><div class="score-num" id="iadl-score" style="color:var(--green)">0</div><div class="score-max">/ 24 分</div></div>
+    <div><div class="score-label">IADL 總分</div><div id="iadl-level" style="margin-top:4px;font-size:13px;color:var(--muted)">請填寫以下各項</div></div>
+  </div>
+  <div class="card"><div class="card-body" id="iadl-questions"></div></div>
+</div>
+
+<div id="tab-basic" class="section">
+  <div class="card"><div class="card-head">教育程度</div><div class="card-body"><div class="radio-row" id="education"></div></div></div>
+  <div class="card"><div class="card-head">婚姻狀況</div><div class="card-body"><div class="radio-row" id="marital"></div></div></div>
+  <div class="card"><div class="card-head">語言能力</div><div class="card-body"><div class="check-group" id="language"></div></div></div>
+  <div class="card"><div class="card-head">福利身分</div><div class="card-body"><div class="radio-row" id="welfare"></div></div></div>
+  <div class="card"><div class="card-head">宗教信仰</div><div class="card-body"><div class="radio-row" id="religion"></div></div></div>
+  <div class="card"><div class="card-head">經濟來源</div><div class="card-body"><div class="check-group" id="income"></div></div></div>
+</div>
+
+<div id="tab-body" class="section">
+  <div class="card"><div class="card-head">意識狀況</div><div class="card-body"><div class="radio-row" id="consciousness"></div></div></div>
+  <div class="card"><div class="card-head">情緒表現</div><div class="card-body"><div class="radio-row" id="emotion"></div></div></div>
+  <div class="card"><div class="card-head">視力狀況</div><div class="card-body"><div class="radio-row" id="vision"></div></div></div>
+  <div class="card"><div class="card-head">聽力狀況</div><div class="card-body">
+    <div class="radio-row" id="hearing"></div>
+    <div id="hearing-aid-box" style="margin-top:10px;display:none"><label style="font-size:12px;color:var(--muted)">助聽器：</label><div class="radio-row" id="hearing_aid"></div></div>
+  </div></div>
+  <div class="card"><div class="card-head">呼吸狀況</div><div class="card-body"><div class="radio-row" id="breathing"></div></div></div>
+  <div class="card"><div class="card-head">溝通能力</div><div class="card-body"><div class="radio-row" id="communication"></div></div></div>
+  <div class="card"><div class="card-head">咀嚼能力</div><div class="card-body"><div class="radio-row" id="chewing"></div></div></div>
+  <div class="card"><div class="card-head">吞嚥能力</div><div class="card-body"><div class="radio-row" id="swallowing"></div></div></div>
+  <div class="card"><div class="card-head">假牙使用</div><div class="card-body"><div class="radio-row" id="denture"></div></div></div>
+  <div class="card"><div class="card-head">消化排便</div><div class="card-body"><div class="radio-row" id="digestion"></div></div></div>
+  <div class="card"><div class="card-head">泌尿系統</div><div class="card-body"><div class="radio-row" id="urinary"></div></div></div>
+  <div class="card"><div class="card-head">活動能力</div><div class="card-body">
+    <div class="radio-row" id="activity"></div>
+    <div id="activity-bedridden" style="margin-top:10px;display:none"><label style="font-size:12px;color:var(--muted)">臥床翻身：</label><div class="radio-row" id="activity_bedridden"></div></div>
+    <div id="activity-mobile" style="margin-top:10px;display:none"><label style="font-size:12px;color:var(--muted)">步態：</label><div class="radio-row" id="activity_gait"></div></div>
+  </div></div>
+  <div class="card"><div class="card-head">行走能力</div><div class="card-body"><div class="radio-row" id="walking"></div></div></div>
+  <div class="card"><div class="card-head">輔具使用</div><div class="card-body"><div class="check-group" id="aids"></div></div></div>
+</div>
+
+<div id="tab-medical" class="section">
+  <div class="card"><div class="card-head">罹患疾病</div><div class="card-body"><div class="check-group" id="diseases"></div></div></div>
+  <div class="card"><div class="card-head">定向感</div><div class="card-body"><div class="radio-row" id="orientation"></div></div></div>
+  <div class="card"><div class="card-head">最近一年住院</div><div class="card-body">
+    <div class="radio-row" id="hospitalized"></div>
+    <div id="hosp-detail" style="margin-top:10px;display:none"><div class="field-group"><label>住院原因</label><input id="hosp_reason" type="text"></div></div>
+  </div></div>
+  <div class="card"><div class="card-head">最近一年手術</div><div class="card-body">
+    <div class="radio-row" id="surgery"></div>
+    <div id="surgery-detail" style="margin-top:10px;display:none"><div class="field-group"><label>手術名稱</label><input id="surgery_name" type="text"></div></div>
+  </div></div>
+  <div class="card"><div class="card-head">最近一年跌倒</div><div class="card-body"><div class="radio-row" id="fall"></div></div></div>
+  <div class="card"><div class="card-head">用藥情形</div><div class="card-body">
+    <div id="drug-list"></div>
+    <button class="add-btn" onclick="addDrug()">+ 新增藥物</button>
+  </div></div>
+</div>
+
+<div id="tab-device" class="section">
+  <div class="card"><div class="card-head">設備了解程度</div><div class="card-body"><div class="check-group" id="device-understanding"></div></div></div>
+</div>
+
+<div id="tab-vitals" class="section">
+  <div class="card"><div class="card-head">生命徵象</div><div class="card-body">
+    <div class="vitals-grid">
+      <div class="vital-group"><label>血壓 (mmHg)</label><input id="bp" type="text" placeholder="120/80"></div>
+      <div class="vital-group"><label>心跳 (bpm)</label><input id="hr" type="number" placeholder="72"></div>
+      <div class="vital-group"><label>呼吸 (次/分)</label><input id="rr" type="number" placeholder="18"></div>
+      <div class="vital-group"><label>體溫 (°C)</label><input id="temp" type="number" step="0.1" placeholder="36.5"></div>
+      <div class="vital-group"><label>身高 (cm)</label><input id="height" type="number" step="0.1" placeholder="165" oninput="calcBMI()"></div>
+      <div class="vital-group"><label>體重 (kg)</label><input id="weight" type="number" step="0.1" placeholder="60" oninput="calcBMI()"></div>
+      <div class="vital-group"><label>BMI</label><div class="bmi-display" id="bmi-val">-</div></div>
+    </div>
+  </div></div>
+  <div class="card"><div class="card-head">血糖評估</div><div class="card-body">
+    <div class="field-row">
+      <div class="field-group"><label>血糖值 (mg/dL)</label><input id="blood_sugar" type="number"></div>
+      <div class="field-group"><label>測量時間</label><div class="radio-row" id="blood-sugar-timing"></div></div>
+    </div>
+  </div></div>
+  <div class="card"><div class="card-head">個案基本資料</div><div class="card-body">
+    <div class="field-row"><div class="field-group"><label>姓名</label><input id="case_name" type="text"></div><div class="field-group"><label>電話</label><input id="case_phone" type="text"></div></div>
+    <div class="field-row"><div class="field-group"><label>身分證字號</label><input id="case_id" type="text"></div><div class="field-group"><label>年齡</label><input id="case_age" type="number"></div></div>
+    <div class="field-row"><div class="field-group"><label>性別</label><select id="case_gender"><option value="男">男</option><option value="女">女</option></select></div><div class="field-group"><label>行政區</label><input id="case_district" type="text"></div></div>
+  </div></div>
+  <div class="card"><div class="card-head">訪視備註</div><div class="card-body"><div class="field-group"><label>家訪紀錄備註</label><textarea id="visit_note"></textarea></div><div class="field-group" style="margin-top:10px"><label>醫療建議備註</label><textarea id="medical_note"></textarea></div></div></div>
+</div>
+
+<div id="tab-sign" class="section">
+  <div class="card">
+    <div class="card-head">個案簽名 <button onclick="clearCanvas('sig-client')" style="padding:2px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:white;cursor:pointer">清除</button></div>
+    <div class="card-body" style="padding:8px"><canvas id="sig-client" width="800" height="200" style="width:100%;height:150px;border:1px solid var(--border);border-radius:8px;background:white"></canvas></div>
+    <div style="padding:0 16px 12px 16px"><button onclick="window.parent.postMessage({type:'downloadSignature',signatureType:'client'},window.location.origin)" style="width:100%;padding:8px;background:#2c7be5;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">⬇️ 下載個案簽名</button></div>
+  </div>
+  <div class="card">
+    <div class="card-head">家訪員簽名 <button onclick="clearCanvas('sig-worker')" style="padding:2px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:white;cursor:pointer">清除</button></div>
+    <div class="card-body" style="padding:8px"><canvas id="sig-worker" width="800" height="200" style="width:100%;height:150px;border:1px solid var(--border);border-radius:8px;background:white"></canvas></div>
+    <div style="padding:0 16px 12px 16px"><button onclick="window.parent.postMessage({type:'downloadSignature',signatureType:'worker'},window.location.origin)" style="width:100%;padding:8px;background:#2c7be5;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">⬇️ 下載家訪員簽名</button></div>
+  </div>
+  <div class="card">
+    <div class="card-head">儲存設定</div>
+    <div class="card-body">
+      <div style="display:flex;gap:8px;margin-bottom:8px"><button onclick="setSaveMode('firebase')" id="mode-firebase" class="radio-btn selected" style="flex:1">Firebase 雲端</button><button onclick="setSaveMode('download')" id="mode-download" class="radio-btn" style="flex:1">直接下載</button></div>
+      <div id="cfg-firebase" style="font-size:13px;color:var(--muted);padding:8px 0">✓ 簽名將自動儲存到 Firebase Cloud Firestore</div>
+      <div id="cfg-download" style="display:none;font-size:13px;color:var(--muted);padding:8px 0">簽名完成後直接下載 PNG 圖片到本機</div>
+    </div>
+  </div>
+  <button onclick="saveSignatures()" style="width:100%;padding:13px;background:var(--green);color:white;border:none;border-radius:10px;font-size:15px;cursor:pointer;font-weight:500">💾 儲存簽名</button>
+  <div id="sign-msg" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:12px"></div>
+</div>
+
+<div id="tab-records" class="section">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:500">已儲存的紀錄</div><button onclick="exportAllRecords()" style="padding:6px 14px;border:1.5px solid var(--border);border-radius:8px;background:white;font-size:12px;color:var(--muted);cursor:pointer">📤 匯出全部</button></div>
+  <div id="records-list"></div>
+  <div id="records-empty" style="text-align:center;padding:40px;color:var(--muted);font-size:13px">尚無儲存的紀錄</div>
+</div>
+
+<div id="tab-result" class="section">
+  <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#92400e">⚡ 點下方「產生填寫清單」後，每個欄位都有複製按鈕，貼到系統對應欄位即可。</div>
+  <div class="copy-area" id="result-output"><div style="text-align:center;padding:30px;color:var(--muted)">請先點下方「產生填寫清單」</div></div>
+</div>
+
+</div>
+
+<div class="bottom-bar">
+  <button class="reset-btn" onclick="resetForm()">重新填寫</button>
+
+  <button class="gen-btn" onclick="generateResult()">📋 產生填寫清單</button>
+</div>
+
+<script>
+const API = '';
+const ADL_Q = [
+  {label:'進食',opts:[{t:'10分：自行在合理時間內取食',v:10},{t:'5分：需協助（穿脫輔具或湯匙）',v:5},{t:'0分：無法自行取食或耗時過長',v:0}]},
+  {label:'個人衛生',opts:[{t:'5分：可自行洗手、刷牙、洗臉及梳頭',v:5},{t:'0分：需他人部份或完全協助',v:0}]},
+  {label:'上廁所',opts:[{t:'10分：可自行上下馬桶、穿脫衣服、使用衛生紙',v:10},{t:'5分：需協助保持姿勢平衡、整理衣服或衛生紙',v:5},{t:'0分：無法自己完成',v:0}]},
+  {label:'洗澡',opts:[{t:'5分：能獨立完成（盆浴或沐浴）',v:5},{t:'0分：需別人協助',v:0}]},
+  {label:'穿脫衣服',opts:[{t:'10分：能自己穿脫衣服、鞋子，自己扣釦、拉鍊或綁鞋帶',v:10},{t:'5分：在別人協助下，可自己完成一半以上的動作',v:5},{t:'0分：不會自己做',v:0}]},
+  {label:'大便控制',opts:[{t:'10分：不會失禁，能自行灌腸或使用塞劑',v:10},{t:'5分：偶爾會失禁（每週不超過一次）',v:5},{t:'0分：失禁，無法自己控制且需他人處理',v:0}]},
+  {label:'小便控制',opts:[{t:'10分：能自己控制不會有失禁，或能自行使用並清潔尿套、尿袋',v:10},{t:'5分：偶爾會失禁（每週不超過一次）',v:5},{t:'0分：失禁，無法自己控制且需他人處理',v:0}]},
+  {label:'平地行走',opts:[{t:'15分：使用或不使用輔具，皆可獨立行走50公尺以上',v:15},{t:'10分：需他人稍微扶持或口頭指導才能行走50公尺以上',v:10},{t:'5分：雖無法行走，但可以操作輪椅（含轉彎、進門及接近桌子、床沿）並可推行輪椅50公尺以上',v:5},{t:'0分：完全無法自行行走，需別人幫忙推輪椅',v:0}]},
+  {label:'上下樓梯',opts:[{t:'10分：可自行上下樓梯，可使用扶手、柺杖等輔具',v:10},{t:'5分：需他人協助或監督才能上下樓梯',v:5},{t:'0分：無法上下樓梯',v:0}]},
+  {label:'上下床或椅子',opts:[{t:'15分：整個過程可獨立完成',v:15},{t:'10分：移動身體時需要稍微協助、給予提醒或安全監督',v:10},{t:'5分：可以自行坐起，但從床上坐起時或移動身體時需要他人協助',v:5},{t:'0分：不會自己移動',v:0}]},
+];
+const IADL_Q = [
+  {label:'使用電話的能力',opts:[{t:'3分：獨立使用電話，含查電話簿、撥號等',v:3},{t:'2分：僅可撥熟悉的電話號碼',v:2},{t:'1分：僅會接電話，不會撥電話',v:1},{t:'0分：完全不會使用電話或不適用',v:0}]},
+  {label:'上街購物',opts:[{t:'3分：獨立完成所有購物需求',v:3},{t:'2分：獨立購買日常生活用品',v:2},{t:'1分：每一次上街購物都需要有人陪',v:1},{t:'0分：完全不會上街購物',v:0}]},
+  {label:'食物烹調',opts:[{t:'3分：能獨立計劃、烹煮和擺設一頓適當的飯菜',v:3},{t:'2分：如果準備好一切佐料，做得一頓適當的飯菜',v:2},{t:'1分：會將已做好的飯菜加熱',v:1},{t:'0分：需要別人把飯菜煮好、擺好',v:0}]},
+  {label:'家務維持',opts:[{t:'4分：能做較繁重的家事或需偶爾家事協助',v:4},{t:'3分：能做較簡單的家事，如洗碗、鋪床、疊被',v:3},{t:'2分：能做家事，但不能達到可被接受的整潔程度',v:2},{t:'1分：所有的家事都需要別人協助',v:1},{t:'0分：完全不會做家事',v:0}]},
+  {label:'洗衣服',opts:[{t:'2分：自己清洗所有衣物',v:2},{t:'1分：只清洗小件衣物',v:1},{t:'0分：完全依賴他人洗衣服',v:0}]},
+  {label:'外出',opts:[{t:'4分：能夠自己搭乘大眾運輸工具或自己開車、騎車',v:4},{t:'3分：可搭計程車或大眾運輸工具',v:3},{t:'2分：能夠自己搭乘計程車但不會搭乘大眾運輸工具',v:2},{t:'1分：當有人陪同可搭計程車或大眾運輸工具',v:1},{t:'0分：完全不能出門',v:0}]},
+  {label:'服用藥物',opts:[{t:'3分：能自己負責在正確的時間用正確的藥物',v:3},{t:'2分：需要提醒或少許協助',v:2},{t:'1分：如果事先準備好藥用的藥物份量，可自行服用',v:1},{t:'0分：不能自己服用藥物',v:0}]},
+  {label:'財務處理能力',opts:[{t:'2分：可獨立處理財務',v:2},{t:'1分：可以處理日常的購買，但需要別人的協助與銀行的往來或大宗買賣',v:1},{t:'0分：不能處理錢財',v:0}]},
+];
+
+let state = { adl:{}, iadl:{}, marital:'', language:[], education:'', welfare:'', religion:'', income:[], consciousness:'', emotion:'', vision:'', hearing:'', breathing:'', communication:'', chewing:'', swallowing:'', denture:'', digestion:'', urinary:'', activity:'', walking:'', aids:[], diseases:[], orientation:'', hospitalized:'', surgery:'', fall:'', device_understanding:[], blood_sugar_timing:'', hearing_aid:'', activity_bedridden:'', activity_gait:'' };
+let drugs = [];
+let adlTotal=0, iadlTotal=0;
+
+function showTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(id==='sign') { initCanvas('sig-client'); initCanvas('sig-worker'); }
+}
+
+function renderADL() {
+  const el = document.getElementById('adl-questions');
+  el.innerHTML = ADL_Q.map((q,qi) => `<div class="q-row"><div class="q-label">${q.label}</div><div class="options">${q.opts.map(o => `<button class="opt-btn${state.adl[qi]===o.v?' selected':''}" onclick="selectADL(${qi},${o.v},this)">${o.t}<span class="pts">${o.v} 分</span></button>`).join('')}</div></div>`).join('');
+}
+function renderIADL() {
+  const el = document.getElementById('iadl-questions');
+  el.innerHTML = IADL_Q.map((q,qi) => `<div class="q-row"><div class="q-label">${q.label}</div><div class="options">${q.opts.map(o => `<button class="opt-btn${state.iadl[qi]===o.v?' selected':''}" onclick="selectIADL(${qi},${o.v},this)">${o.t}<span class="pts">${o.v} 分</span></button>`).join('')}</div></div>`).join('');
+}
+function selectADL(qi,v,btn){ state.adl[qi]=v; btn.closest('.options').querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); updateScores(); }
+function selectIADL(qi,v,btn){ state.iadl[qi]=v; btn.closest('.options').querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); updateScores(); }
+function updateScores(){
+  adlTotal = Object.values(state.adl).reduce((a,b)=>a+b,0);
+  iadlTotal = Object.values(state.iadl).reduce((a,b)=>a+b,0);
+  document.getElementById('adl-score').textContent = adlTotal;
+  document.getElementById('iadl-score').textContent = iadlTotal;
+  document.getElementById('hdr-adl').textContent = adlTotal;
+  document.getElementById('hdr-iadl').textContent = iadlTotal;
+}
+
+function renderRadio(id,items,key,cb){
+  const el=document.getElementById(id); if(!el)return;
+  el.innerHTML=items.map(i=>`<button class="radio-btn${state[key]===i?' selected':''}" onclick="selectRadio('${key}','${i}',this,'${id}')">${i}</button>`).join('');
+  el._cb=cb;
+}
+function selectRadio(key,v,btn,id){
+  state[key]=v; document.getElementById(id).querySelectorAll('.radio-btn').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected');
+  if(key==='hospitalized') document.getElementById('hosp-detail').style.display=v==='有'?'block':'none';
+  if(key==='surgery') document.getElementById('surgery-detail').style.display=v==='有'?'block':'none';
+  const el=document.getElementById(id); if(el._cb) el._cb();
+}
+function renderCheckbox(id,items,key){
+  const el=document.getElementById(id); if(!el)return;
+  el.innerHTML=items.map(i=>`<button class="check-btn${state[key].includes(i)?' selected':''}" onclick="toggleCheck('${key}','${i}',this)">${i}</button>`).join('');
+}
+function toggleCheck(key,v,btn){
+  const idx=state[key].indexOf(v); if(idx>-1) state[key].splice(idx,1); else state[key].push(v);
+  btn.classList.toggle('selected');
+}
+
+function addDrug(){ drugs.push({name:'',dose:'',freq:'',way:''}); renderDrugs(); }
+function renderDrugs(){
+  const el=document.getElementById('drug-list');
+  el.innerHTML=drugs.map((d,i)=>`<div class="drug-row"><input placeholder="藥名" value="${d.name}" oninput="drugs[${i}].name=this.value"><input placeholder="劑量" value="${d.dose}" oninput="drugs[${i}].dose=this.value"><input placeholder="頻率" value="${d.freq}" oninput="drugs[${i}].freq=this.value"><input placeholder="途徑" value="${d.way}" oninput="drugs[${i}].way=this.value"><button class="del-btn" onclick="drugs.splice(${i},1);renderDrugs()">×</button></div>`).join('');
+}
+
+function calcBMI(){
+  const h=document.getElementById('height').value/100, w=document.getElementById('weight').value;
+  const bmi = (h&&w) ? (w/(h*h)).toFixed(1) : '-';
+  document.getElementById('bmi-val').textContent = bmi;
+}
+
+let _cachedRecords = [];
+async function renderRecords(){
+  const list=document.getElementById('records-list'), empty=document.getElementById('records-empty');
+  list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">載入中...</div>';
+  try {
+    const res=await fetch('/api/records'); _cachedRecords=await res.json();
+    if(_cachedRecords.length===0){ list.innerHTML=''; empty.style.display='block'; return; }
+    empty.style.display='none';
+    list.innerHTML=_cachedRecords.map((r,i)=>`
+      <div class="card"><div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div><b>${r.case?.name||'未知'}</b> <small style="color:var(--muted)">${r.savedAt||''}</small></div>
+          <div style="display:flex;gap:5px">
+            <button onclick="viewRecord(${i})" style="padding:4px 8px;border:1px solid var(--blue);border-radius:4px;background:var(--blue-light);color:var(--blue);font-size:11px;cursor:pointer">📋 查看</button>
+            <button onclick="downloadSigs(${i})" style="padding:4px 8px;border:1px solid var(--green);border-radius:4px;background:var(--green-light);color:var(--green);font-size:11px;cursor:pointer">✍️ 下載簽名</button>
+            <button onclick="deleteRecord('${r._id}')" style="padding:4px 8px;border:1px solid var(--red);border-radius:4px;background:#fff5f5;color:var(--red);font-size:11px;cursor:pointer">刪除</button>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">ADL: ${r.adl||0} | IADL: ${r.iadl||0} | ${r.case?.district||''}</div>
+      </div></div>`).join('');
+  } catch(e){ list.innerHTML='載入失敗'; }
+}
+
+function viewRecord(i){
+  const r=_cachedRecords[i]; if(!r)return;
+  alert('已載入紀錄，請切換到「產生結果」分頁查看內容。');
+  // 此處可擴充將紀錄內容填回表單或直接顯示在結果頁
+}
+
+function downloadSigs(i){
+  const r=_cachedRecords[i]; if(!r||!r.signatures)return;
+  const name=r.case?.name||'未知'; let count=0;
+  if(r.signatures.client){ const a=document.createElement('a'); a.href=r.signatures.client; a.download=`個案簽名_${name}.png`; a.click(); count++; }
+  setTimeout(()=>{
+    if(r.signatures.worker){ const a=document.createElement('a'); a.href=r.signatures.worker; a.download=`家訪員簽名_${name}.png`; a.click(); count++; }
+    if(count===0) alert('此紀錄無簽名檔');
+  },300);
+}
+
+async function deleteRecord(id){ if(!confirm('確定刪除？'))return; await fetch('/api/records/'+id,{method:'DELETE'}); renderRecords(); }
+
+async function saveRecord(){
+  const v={ bp:document.getElementById('bp').value, hr:document.getElementById('hr').value, rr:document.getElementById('rr').value, temp:document.getElementById('temp').value, weight:document.getElementById('weight').value, bmi:document.getElementById('bmi-val').textContent, bs:document.getElementById('blood_sugar').value };
+  const cSig=isCanvasBlank('sig-client')?null:document.getElementById('sig-client').toDataURL('image/png');
+  const wSig=isCanvasBlank('sig-worker')?null:document.getElementById('sig-worker').toDataURL('image/png');
+  const record={ adl:adlTotal, iadl:iadlTotal, state, drugs, vitals:v, texts:{visit_note:document.getElementById('visit_note').value, medical_note:document.getElementById('medical_note').value}, case:{name:document.getElementById('case_name').value, phone:document.getElementById('case_phone').value, id:document.getElementById('case_id').value, age:document.getElementById('case_age').value, gender:document.getElementById('case_gender').value, district:document.getElementById('case_district').value}, signatures:{client:cSig, worker:wSig}, savedAt:new Date().toLocaleString('zh-TW') };
+  try {
+    const res=await fetch('/api/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});
+    const data=await res.json(); if(data.ok){ alert('✓ 已儲存到雲端！'); renderRecords(); } else throw new Error(data.error);
+  } catch(e){ alert('儲存失敗：'+e.message); }
+}
+
+window.saveAssessmentToParent = function() {
+  saveRecord();
+};
+
+function resetForm(){ location.reload(); }
+
+// Canvas
+function initCanvas(id){
+  const c=document.getElementById(id); if(!c||c._init)return; c._init=true;
+  let drawing=false, lx=0, ly=0; const ctx=c.getContext('2d');
+  ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=2.5; ctx.lineCap='round';
+  const pos=e=>{ const r=c.getBoundingClientRect(); const sX=c.width/r.width, sY=c.height/r.height; const src=e.touches?e.touches[0]:e; return [(src.clientX-r.left)*sX, (src.clientY-r.top)*sY]; };
+  c.addEventListener('mousedown',e=>{drawing=true; [lx,ly]=pos(e);});
+  c.addEventListener('mousemove',e=>{if(!drawing)return; const [x,y]=pos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(x,y); ctx.stroke(); [lx,ly]=[x,y];});
+  window.addEventListener('mouseup',()=>{drawing=false;});
+  c.addEventListener('touchstart',e=>{e.preventDefault(); drawing=true; [lx,ly]=pos(e);},{passive:false});
+  c.addEventListener('touchmove',e=>{e.preventDefault(); if(!drawing)return; const [x,y]=pos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(x,y); ctx.stroke(); [lx,ly]=[x,y];},{passive:false});
+}
+function clearCanvas(id){ const c=document.getElementById(id); c.getContext('2d').clearRect(0,0,c.width,c.height); }
+function isCanvasBlank(id){ const c=document.getElementById(id); const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data; return !d.some(v=>v!==0); }
+
+let saveMode='firebase';
+function setSaveMode(m){ saveMode=m; document.getElementById('mode-firebase').classList.toggle('selected',m==='firebase'); document.getElementById('mode-download').classList.toggle('selected',m==='download'); document.getElementById('cfg-firebase').style.display=m==='firebase'?'block':'none'; document.getElementById('cfg-download').style.display=m==='download'?'block':'none'; }
+
+async function saveSignatures(){
+  if(saveMode==='download'){
+    const ts=Date.now(); let count=0;
+    if(!isCanvasBlank('sig-client')){ const a=document.createElement('a'); a.href=document.getElementById('sig-client').toDataURL('image/png'); a.download=`個案簽名_${ts}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a); count++; }
+    setTimeout(()=>{
+      if(!isCanvasBlank('sig-worker')){ const a=document.createElement('a'); a.href=document.getElementById('sig-worker').toDataURL('image/png'); a.download=`家訪員簽名_${ts}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a); count++; }
+      if(count>0) alert(`✓ 已下載 ${count} 個簽名檔`);
+    },300);
+  } else if(saveMode==='firebase'){
+    const docId = await saveToFirebase();
+    if(docId){
+      const clientSig = document.getElementById('sig-client').toDataURL('image/png');
+      const workerSig = document.getElementById('sig-worker').toDataURL('image/png');
+      await uploadSignaturesToFirebase(docId, clientSig, workerSig);
+    }
+  }
+}
+
+function generateResult(){
+  showTab('result',document.querySelector('[onclick*="result"]'));
+  const output=document.getElementById('result-output');
+  let html='<div class="result-header"><div style="font-weight:500">📋 填寫清單</div><button class="copy-all-btn" onclick="copyAllResults()">📋 複製全部</button></div>';
+  
+  html+='<div class="copy-item"><div class="copy-label">個案姓名</div><div class="copy-val" id="r-name">'+document.getElementById('case_name').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">電話</div><div class="copy-val" id="r-phone">'+document.getElementById('case_phone').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">ADL 分數</div><div class="copy-val" id="r-adl">'+adlTotal+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">IADL 分數</div><div class="copy-val" id="r-iadl">'+iadlTotal+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">身高 (cm)</div><div class="copy-val" id="r-height">'+document.getElementById('height').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">體重 (kg)</div><div class="copy-val" id="r-weight">'+document.getElementById('weight').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">BMI</div><div class="copy-val" id="r-bmi">'+document.getElementById('bmi-val').textContent+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">血壓</div><div class="copy-val" id="r-bp">'+document.getElementById('bp').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">心跳</div><div class="copy-val" id="r-hr">'+document.getElementById('hr').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">呼吸</div><div class="copy-val" id="r-rr">'+document.getElementById('rr').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">體溫</div><div class="copy-val" id="r-temp">'+document.getElementById('temp').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">血糖</div><div class="copy-val" id="r-bs">'+document.getElementById('blood_sugar').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">用藥</div><div class="copy-val" id="r-drugs">'+drugs.map(d=>d.name+' '+d.dose+' '+d.freq).join(', ')+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">訪視備註</div><div class="copy-val" id="r-visit">'+document.getElementById('visit_note').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  html+='<div class="copy-item"><div class="copy-label">醫療建議</div><div class="copy-val" id="r-medical">'+document.getElementById('medical_note').value+'</div><button class="copy-btn" onclick="copyText(this)">複製</button></div>';
+  
+  output.innerHTML=html;
+}
+
+function copyText(btn){
+  const val=btn.previousElementSibling.textContent;
+  navigator.clipboard.writeText(val).then(()=>{
+    const orig=btn.textContent; btn.textContent='✓ 已複製'; btn.classList.add('ok');
+    setTimeout(()=>{ btn.textContent=orig; btn.classList.remove('ok'); },1500);
+  });
+}
+
+function copyAllResults(){
+  let text='';
+  document.querySelectorAll('.copy-item').forEach(item=>{
+    const label=item.querySelector('.copy-label').textContent;
+    const val=item.querySelector('.copy-val').textContent;
+    text+=label+': '+val+'\n';
+  });
+  navigator.clipboard.writeText(text).then(()=>alert('✓ 已複製全部'));
+}
+
+function init(){
+  renderADL(); renderIADL();
+  
+  // 頁面加載時自動載入上次的評估表資料
+  setTimeout(() => {
+    const caseName = document.getElementById('case_name').value;
+    if (caseName) {
+      loadFromFirebase(caseName);
+    }
+  }, 500);
+  
+  // 設定自動保存功能 - 每當表單改變時自動保存
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+      input.addEventListener('change', () => {
+        autoSaveToFirebase();
+      });
+    });
+  }, 1000);
+  renderRadio('education',['不識字','識字但未就學','小學','國中','高中/職','專科/大學','研究所以上'],'education');
+  renderRadio('marital',['未婚','有偶','喪偶','離婚','分居'],'marital');
+  renderCheckbox('language',['國語','台語','客語','原住民語','英語','其他'],'language');
+  renderRadio('welfare',['一般','中低收入戶','低收入戶','身心障礙','榮民/榮眷','其他'],'welfare');
+  renderRadio('religion',['無','佛教','道教','天主教','基督教','民間信仰','其他'],'religion');
+  renderCheckbox('income',['自己工作','配偶','子女','親友','政府補助','退休金/保險','其他'],'income');
+  renderRadio('consciousness',['清醒','驚醒','迷朦','混亂','嗜睡','呆滯','木僵','昏迷'],'consciousness');
+  renderRadio('emotion',['平穩','焦慮','煩躁','激動','謾罵','攻擊行為','淡漠','無法評估'],'emotion');
+  renderRadio('vision',['正常','模糊','失明','無法評估','老花'],'vision');
+  renderRadio('hearing',['正常','重聽（單）','重聽（雙）','失聰（單）','失聰（雙）','無法評估'],'hearing',() => {
+    const show=['重聽（單）','重聽（雙）','失聰（單）','失聰（雙）'].includes(state.hearing);
+    document.getElementById('hearing-aid-box').style.display=show?'block':'none';
+    if(show) renderRadio('hearing_aid',['有','無'],'hearing_aid');
+  });
+  renderRadio('breathing',['正常','氣喘','氣切','喘息聲','氧氣使用'],'breathing');
+  renderRadio('communication',['正常','含糊','失語','肢體表達','無法評估'],'communication');
+  renderRadio('chewing',['正常','缺牙','無法評估'],'chewing');
+  renderRadio('swallowing',['正常','偶嗆食(1:10)','易嗆食(3-4:10)','無法吞嚥','無法評估'],'swallowing');
+  renderRadio('denture',['無','固定','活動'],'denture');
+  renderRadio('digestion',['正常','便秘','灌腸','大便失禁'],'digestion');
+  renderRadio('urinary',['正常','多尿','少尿','頻尿','尿滯留','尿布使用','尿管留置'],'urinary');
+  renderRadio('activity',['完全臥床','可離床活動'],'activity',() => {
+    document.getElementById('activity-bedridden').style.display=state.activity==='完全臥床'?'block':'none';
+    document.getElementById('activity-mobile').style.display=state.activity==='可離床活動'?'block':'none';
+    if(state.activity==='完全臥床') renderRadio('activity_bedridden',['自行','部分協助','完全協助'],'activity_bedridden');
+    if(state.activity==='可離床活動') renderRadio('activity_gait',['穩定','不穩定'],'activity_gait');
+  });
+  renderRadio('walking',['自行','扶持','無法行走'],'walking');
+  renderCheckbox('aids',['無','輪椅','柺杖','義肢','助行器','其他'],'aids');
+  renderCheckbox('diseases',['高血壓','心臟病','糖尿病','中風','精神疾病','巴金森氏症','失智症','慢性阻塞性肺疾病','氣喘','肺結核','B型肝炎','腎臟疾病','癌症','骨骼關節疾病','其他'],'diseases');
+  renderRadio('orientation',['人時地均清楚','其中一、二項清楚','三項均不正確','無法評估'],'orientation');
+  renderRadio('hospitalized',['有','無'],'hospitalized');
+  renderRadio('surgery',['有','無','不詳'],'surgery');
+  renderRadio('fall',['有','無','不詳'],'fall');
+  renderCheckbox('device-understanding',['主機通話','主機求救','子機求救','外出/返家','報安確認','GPS手錶','行動照護鑰'],'device_understanding');
+  renderRadio('blood-sugar-timing',['飯前','飯後','隨機'],'blood_sugar_timing');
+}
+init();
+
+// Firebase 初始化
+const firebaseConfig = {
+  apiKey: "AIzaSyBnZ5Aq-z0Yp8K3L9M2N3O4P5Q6R7S8T9U",
+  authDomain: "skss-975e9.firebaseapp.com",
+  projectId: "skss-975e9",
+  storageBucket: "skss-975e9.appspot.com",
+  messagingSenderId: "107503085220920563815",
+  appId: "1:107503085220920563815:web:a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+};
+
+let db, storage;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  storage = firebase.storage();
+  console.log('✓ Firebase 已連接');
+} catch (e) {
+  console.error('Firebase 初始化失敗:', e);
+}
+
+// 自動保存評估表資料到 Firebase（不包括簽名）
+async function autoSaveToFirebase() {
+  if (!db) return false;
+  
+  try {
+    const assessmentData = {
+      case_name: document.getElementById('case_name').value,
+      case_phone: document.getElementById('case_phone').value,
+      ...state,
+      savedAt: new Date().toISOString(),
+      timestamp: new Date().getTime(),
+      autoSaved: true
+    };
+    
+    // 查詢是否已有該個案的評估表
+    const snapshot = await db.collection('assessments')
+      .where('case_name', '==', assessmentData.case_name)
+      .orderBy('timestamp', 'desc')
+      .limit(1)
+      .get();
+    
+    if (!snapshot.empty) {
+      // 更新現有記錄
+      await snapshot.docs[0].ref.update(assessmentData);
+    } else {
+      // 建立新記錄
+      await db.collection('assessments').add(assessmentData);
+    }
+    
+    console.log('✓ 資料已自動保存到 Firebase');
+    return true;
+  } catch (e) {
+    console.error('自動保存失敗:', e);
+    return false;
+  }
+}
+
+// 保存評估表資料到 Firebase
+async function saveToFirebase() {
+  if (!db) {
+    alert('Firebase 未連接');
+    return false;
+  }
+  
+  try {
+    const assessmentData = {
+      case_name: document.getElementById('case_name').value,
+      case_phone: document.getElementById('case_phone').value,
+      ...state,
+      savedAt: new Date().toISOString(),
+      timestamp: new Date().getTime()
+    };
+    
+    const docRef = await db.collection('assessments').add(assessmentData);
+    console.log('✓ 資料已保存到 Firebase:', docRef.id);
+    return docRef.id;
+  } catch (e) {
+    console.error('保存失敗:', e);
+    alert('保存失敗: ' + e.message);
+    return false;
+  }
+}
+
+// 從 Firebase 載入評估表資料
+async function loadFromFirebase(caseId) {
+  if (!db) return;
+  
+  try {
+    const snapshot = await db.collection('assessments')
+      .where('case_name', '==', caseId)
+      .orderBy('savedAt', 'desc')
+      .limit(1)
+      .get();
+    
+    if (!snapshot.empty) {
+      const data = snapshot.docs[0].data();
+      Object.keys(data).forEach(key => {
+        if (key !== 'savedAt' && key !== 'timestamp') {
+          state[key] = data[key];
+          const elem = document.getElementById(key);
+          if (elem) {
+            if (elem.type === 'checkbox') {
+              elem.checked = data[key];
+            } else {
+              elem.value = data[key];
+            }
+          }
+        }
+      });
+      console.log('✓ 資料已從 Firebase 載入');
+      return true;
+    }
+  } catch (e) {
+    console.error('載入失敗:', e);
+  }
+  return false;
+}
+
+
+
+// 上傳簽名圖片到 Firebase Storage
+async function uploadSignaturesToFirebase(docId, clientSig, workerSig) {
+  if (!storage) return;
+  
+  try {
+    const timestamp = new Date().getTime();
+    
+    // 上傳個案簽名
+    const clientRef = storage.ref(`signatures/${docId}/client_${timestamp}.png`);
+    await clientRef.putString(clientSig, 'data_url');
+    
+    // 上傳家訪員簽名
+    const workerRef = storage.ref(`signatures/${docId}/worker_${timestamp}.png`);
+    await workerRef.putString(workerSig, 'data_url');
+    
+    console.log('✓ 簽名已上傳到 Firebase Storage');
+    alert('✓ 評估表和簽名已保存到雲端');
+  } catch (e) {
+    console.error('上傳簽名失敗:', e);
+    alert('上傳簽名失敗: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>

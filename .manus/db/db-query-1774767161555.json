@@ -1,0 +1,17 @@
+{
+  "query": "SELECT id, clientName, district, scheduledVisitDate, visitStatus FROM cases WHERE clientName LIKE '%呂瑞成%' LIMIT 10",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user cumuvenGmWLCv3D.root --database GVyUbjiV5SKYzvJXbAkNzD --execute SELECT id, clientName, district, scheduledVisitDate, visitStatus FROM cases WHERE clientName LIKE '%呂瑞成%' LIMIT 10",
+  "rows": [
+    {
+      "id": "60063",
+      "clientName": "呂瑞成",
+      "district": "中西區",
+      "scheduledVisitDate": "2026-03-29 00:00:00",
+      "visitStatus": "unvisited"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclientName\tdistrict\tscheduledVisitDate\tvisitStatus\n60063\t呂瑞成\t中西區\t2026-03-29 00:00:00\tunvisited\n",
+  "stderr": "",
+  "execution_time_ms": 1516
+}

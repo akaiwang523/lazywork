@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM cases; DELETE FROM visitHistory;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user cumuvenGmWLCv3D.root --database GVyUbjiV5SKYzvJXbAkNzD --execute DELETE FROM cases; DELETE FROM visitHistory;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1962
+}

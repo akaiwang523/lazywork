@@ -1,0 +1,1 @@
+ALTER TABLE `cases` ADD `source` enum('excel','manual') DEFAULT 'excel' NOT NULL;

@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COUNT(*) as count FROM cases WHERE scheduledVisitDate IS NOT NULL AND visitStatus = 'unvisited';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user cumuvenGmWLCv3D.root --database GVyUbjiV5SKYzvJXbAkNzD --execute SELECT COUNT(*) as count FROM cases WHERE scheduledVisitDate IS NOT NULL AND visitStatus = 'unvisited';",
+  "rows": [
+    {
+      "count": "3"
+    }
+  ],
+  "messages": [],
+  "stdout": "count\n3\n",
+  "stderr": "",
+  "execution_time_ms": 1590
+}

@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `cases` ADD `source` enum('excel','manual') DEFAULT 'excel' NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user cumuvenGmWLCv3D.root --database GVyUbjiV5SKYzvJXbAkNzD --execute ALTER TABLE `cases` ADD `source` enum('excel','manual') DEFAULT 'excel' NOT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1724
+}
