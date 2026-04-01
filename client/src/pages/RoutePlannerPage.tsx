@@ -2,7 +2,6 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -14,6 +13,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, MapPin, Clock, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
+type OptimizedCase = {
+  id: number;
+  clientName: string;
+  district: string;
+  address: string;
+  phone?: string | null;
+  mobile?: string | null;
+  order: number;
+};
+
 export default function RoutePlannerPage() {
   const [selectedDistrict, setSelectedDistrict] = useState("all");
   const [selectedCases, setSelectedCases] = useState<number[]>([]);
@@ -21,23 +30,20 @@ export default function RoutePlannerPage() {
     distance: string;
     duration: string;
   } | null>(null);
+  const [optimizedCases, setOptimizedCases] = useState<OptimizedCase[]>([]);
   const [isPlanning, setIsPlanning] = useState(false);
   const [mapUrl, setMapUrl] = useState<string | null>(null);
 
-  // 獲取所有鄉鎮區
   const { data: districts = [] } = trpc.cases.districts.useQuery();
 
-  // 獲取個案列表
   const { data: cases = [] } = trpc.cases.list.useQuery({
     status: "unvisited",
     district: selectedDistrict === "all" ? undefined : selectedDistrict,
   });
 
-  // Google Maps API mutations
   const geocodeMutation = trpc.maps.geocodeAddress.useMutation();
   const routeMutation = trpc.maps.getOptimizedRoute.useMutation();
 
-  // 規劃路線
   const planRoute = async () => {
     if (selectedCases.length === 0) {
       toast.error("請選擇至少一個個案");
@@ -46,36 +52,36 @@ export default function RoutePlannerPage() {
 
     setIsPlanning(true);
     try {
-      // 獲取選中的個案
       const casesToRoute = cases.filter((c) => selectedCases.includes(c.id));
 
-      // 地理編碼所有地址
-      const waypoints: Array<{ lat: number; lng: number }> = [];
+      // 地理編碼所有地址，保留對應關係
+      const geocoded: Array<{ caseItem: typeof casesToRoute[0]; lat: number; lng: number }> = [];
       for (const caseItem of casesToRoute) {
         const coords = await geocodeMutation.mutateAsync({
           address: `台南市${caseItem.district}${caseItem.address}`,
         });
         if (coords) {
-          waypoints.push(coords);
+          geocoded.push({ caseItem, lat: coords.lat, lng: coords.lng });
         }
       }
 
-      if (waypoints.length === 0) {
-        toast.error("無法地理編碼任何地址，請檢查地址資訊和 Google Maps API 金鑰配置");
+      if (geocoded.length === 0) {
+        toast.error("無法地理編碼任何地址，請檢查地址資訊");
         return;
       }
 
-      if (waypoints.length < casesToRoute.length) {
-        console.warn(`[Route Planning] 只有 ${waypoints.length}/${casesToRoute.length} 個地址被成功地理編碼`);
-        toast.warning(`只有 ${waypoints.length} 個地址被成功識別，將使用這些地址規劃路線`);
+      if (geocoded.length < casesToRoute.length) {
+        toast.warning(`只有 ${geocoded.length} 個地址被成功識別`);
       }
 
-      if (waypoints.length < 2) {
+      if (geocoded.length < 2) {
         toast.error("至少需要 2 個有效地址才能規劃路線");
         return;
       }
 
-      // 獲取最優路線
+      const waypoints = geocoded.map(g => ({ lat: g.lat, lng: g.lng }));
+
+      // 獲取最優路線（後端回傳 waypointOrder）
       const route = await routeMutation.mutateAsync({ waypoints });
 
       if (route) {
@@ -84,15 +90,38 @@ export default function RoutePlannerPage() {
           duration: route.duration,
         });
 
-      // 構建 Google Maps URL
-      const origin = waypoints[0];
-const destination = waypoints[waypoints.length - 1];
-const waypointStr = waypoints
-  .slice(1, -1)
-  .map(wp => `${wp.lat},${wp.lng}`)
-  .join('|');
+        // 用優化後的順序重新排列
+        const waypointOrder: number[] = (route as any).waypointOrder || [];
 
-const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&origin=${origin?.lat},${origin?.lng}&destination=${destination?.lat},${destination?.lng}${waypointStr ? `&waypoints=${waypointStr}` : ''}`;
+        let orderedGeocoded: typeof geocoded;
+        if (waypointOrder.length > 0 && geocoded.length > 2) {
+          // Google 只優化中間的 waypoints，首尾不變
+          const first = geocoded[0];
+          const last = geocoded[geocoded.length - 1];
+          const middle = geocoded.slice(1, -1);
+          const orderedMiddle = waypointOrder.map(i => middle[i]).filter(Boolean);
+          orderedGeocoded = [first, ...orderedMiddle, last];
+        } else {
+          orderedGeocoded = geocoded;
+        }
+
+        // 設定優化後的個案順序
+        setOptimizedCases(
+          orderedGeocoded.map((g, i) => ({
+            ...g.caseItem,
+            order: i + 1,
+          }))
+        );
+
+        // 構建地圖 URL（用優化後的順序）
+        const origin = orderedGeocoded[0];
+        const destination = orderedGeocoded[orderedGeocoded.length - 1];
+        const waypointStr = orderedGeocoded
+          .slice(1, -1)
+          .map(g => `${g.lat},${g.lng}`)
+          .join('|');
+
+        const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}${waypointStr ? `&waypoints=${waypointStr}` : ''}`;
         setMapUrl(mapsUrl);
         toast.success("路線規劃完成！");
       } else {
@@ -109,7 +138,6 @@ const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.me
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* 頁面標題 */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-100 mb-2">訪視路線規劃</h1>
           <p className="text-slate-400">選擇個案，系統將為您規劃最順路的訪視路線</p>
@@ -121,11 +149,8 @@ const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.me
             <Card className="bg-slate-900/50 border-slate-800 p-6">
               <h2 className="text-xl font-bold text-slate-100 mb-6">選擇個案</h2>
 
-              {/* 鄉鎮區篩選 */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  鄉鎮區
-                </label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">鄉鎮區</label>
                 <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
                   <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-100">
                     <SelectValue placeholder="選擇鄉鎮區" />
@@ -133,15 +158,12 @@ const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.me
                   <SelectContent className="bg-slate-800 border-slate-700">
                     <SelectItem value="all">全部鄉鎮區</SelectItem>
                     {districts.map((district) => (
-                      <SelectItem key={district} value={district}>
-                        {district}
-                      </SelectItem>
+                      <SelectItem key={district} value={district}>{district}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* 個案列表 */}
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {cases.length === 0 ? (
                   <div className="text-center py-8">
@@ -165,12 +187,8 @@ const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.me
                         className="mt-1"
                       />
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-slate-100 truncate">
-                          {caseItem.clientName}
-                        </h3>
-                        <p className="text-sm text-slate-400 truncate">
-                          {caseItem.district} {caseItem.address}
-                        </p>
+                        <h3 className="font-semibold text-slate-100 truncate">{caseItem.clientName}</h3>
+                        <p className="text-sm text-slate-400 truncate">{caseItem.district} {caseItem.address}</p>
                         <div className="flex gap-2 mt-2 text-xs text-slate-500">
                           {caseItem.phone && <span>📞 {caseItem.phone}</span>}
                           {caseItem.mobile && <span>📱 {caseItem.mobile}</span>}
@@ -181,22 +199,15 @@ const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.me
                 )}
               </div>
 
-              {/* 規劃按鈕 */}
               <Button
                 onClick={planRoute}
                 disabled={isPlanning || selectedCases.length === 0}
                 className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {isPlanning ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    規劃中...
-                  </>
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />規劃中...</>
                 ) : (
-                  <>
-                    <MapPin className="w-4 h-4 mr-2" />
-                    規劃最優路線
-                  </>
+                  <><MapPin className="w-4 h-4 mr-2" />規劃最優路線</>
                 )}
               </Button>
             </Card>
@@ -225,11 +236,31 @@ const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.me
                     <p className="text-lg font-semibold text-slate-100">{routeInfo.duration}</p>
                   </div>
 
+                  {/* 優化後的訪視順序 */}
+                  {optimizedCases.length > 0 && (
+                    <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                      <p className="text-sm font-medium text-slate-300 mb-3">建議訪視順序</p>
+                      <div className="space-y-2">
+                        {optimizedCases.map((c) => (
+                          <div key={c.id} className="flex items-start gap-2">
+                            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">
+                              {c.order}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-200 truncate">{c.clientName}</p>
+                              <p className="text-xs text-slate-500 truncate">{c.district} {c.address}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-blue-900/20 border border-blue-800/50 rounded-lg p-4">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
                       <p className="text-sm text-blue-200">
-                        已選擇 {selectedCases.length} 個個案，系統已為您規劃最順路的訪視順序。
+                        已依最短路線重新排列 {selectedCases.length} 個個案的訪視順序。
                       </p>
                     </div>
                   </div>
@@ -237,9 +268,7 @@ const mapsUrl = `https://www.google.com/maps/embed/v1/directions?key=${import.me
               ) : (
                 <div className="text-center py-8">
                   <MapPin className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                  <p className="text-slate-400 text-sm">
-                    選擇個案後點擊「規劃最優路線」查看路線資訊
-                  </p>
+                  <p className="text-slate-400 text-sm">選擇個案後點擊「規劃最優路線」查看路線資訊</p>
                 </div>
               )}
             </Card>

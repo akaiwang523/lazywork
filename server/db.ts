@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, like, lt, desc } from "drizzle-orm";
+import { eq, and, like, lt, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, cases, Case, assessments, Assessment } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -140,21 +140,16 @@ export async function getCasesByStatusAndDistrict(
 
   try {
     const conditions = [];
-    
     conditions.push(eq(cases.source, "excel"));
-    
     if (status !== "all") {
       conditions.push(eq(cases.visitStatus, status));
     }
-
     if (district && district !== "all") {
       conditions.push(eq(cases.district, district));
     }
-
     if (conditions.length > 0) {
       return await db.select().from(cases).where(and(...conditions));
     }
-
     return await db.select().from(cases);
   } catch (error) {
     console.error("[Database] Failed to get cases:", error);
@@ -212,12 +207,7 @@ export async function getVisitStatistics() {
     const allCases = await db.select().from(cases).where(eq(cases.source, "excel"));
     const visited = allCases.filter(c => c.visitStatus === "visited").length;
     const unvisited = allCases.filter(c => c.visitStatus === "unvisited").length;
-    
-    return {
-      total: allCases.length,
-      visited,
-      unvisited,
-    };
+    return { total: allCases.length, visited, unvisited };
   } catch (error) {
     console.error("[Database] Failed to get statistics:", error);
     throw error;
@@ -235,10 +225,7 @@ export async function updateCaseScheduledVisitDate(
 
   try {
     await db.update(cases)
-      .set({
-        scheduledVisitDate: scheduledDate,
-        updatedAt: new Date(),
-      })
+      .set({ scheduledVisitDate: scheduledDate, updatedAt: new Date() })
       .where(eq(cases.id, caseId));
   } catch (error) {
     console.error("[Database] Failed to update case scheduled visit date:", error);
@@ -254,25 +241,18 @@ export async function getTodaysCases(): Promise<Case[]> {
   }
 
   try {
-    // 使用台灣時間（UTC+8）
     const now = new Date();
     const taiwanTime = new Date(now.getTime() + (8 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
     const today = new Date(taiwanTime);
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
     const todayStr = today.toISOString().split('T')[0];
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-    const result = await db.select().from(cases).where(
+    return await db.select().from(cases).where(
       and(
         eq(cases.visitStatus, "unvisited"),
         sql`DATE(${cases.scheduledVisitDate}) = ${todayStr}`
       )
     );
-
-    return result;
   } catch (error) {
     console.error("[Database] Failed to get today's cases:", error);
     return [];
@@ -287,25 +267,19 @@ export async function getTomorrowsCases(): Promise<Case[]> {
   }
 
   try {
-    // 使用台灣時間（UTC+8）
     const now = new Date();
     const taiwanTime = new Date(now.getTime() + (8 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
     const tomorrow = new Date(taiwanTime);
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
-    const dayAfter = new Date(tomorrow);
-    dayAfter.setDate(dayAfter.getDate() + 1);
-
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-    const result = await db.select().from(cases).where(
+    return await db.select().from(cases).where(
       and(
         eq(cases.visitStatus, "unvisited"),
         sql`DATE(${cases.scheduledVisitDate}) = ${tomorrowStr}`
       )
     );
-
-    return result;
   } catch (error) {
     console.error("[Database] Failed to get tomorrow's cases:", error);
     return [];
@@ -327,7 +301,6 @@ export async function createCaseManually(caseData: {
 
   try {
     const contractNumber = `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
     await db.insert(cases).values({
       contractNumber,
       sequenceNumber: 0,
@@ -346,7 +319,6 @@ export async function createCaseManually(caseData: {
     const newCases = await db.select().from(cases).where(
       eq(cases.contractNumber, contractNumber)
     ).limit(1);
-    
     return newCases.length > 0 ? newCases[0] : null;
   } catch (error) {
     console.error("[Database] Failed to create case manually:", error);
@@ -364,11 +336,9 @@ export async function getAllDistricts(): Promise<string[]> {
   try {
     const result = await db.select({ district: cases.district }).from(cases)
       .where(eq(cases.source, "excel"));
-    
     const districts = Array.from(new Set(result.map(r => r.district)))
       .filter(d => d && d.trim() !== "")
       .sort();
-    
     return districts;
   } catch (error) {
     console.error("[Database] Failed to get districts:", error);
@@ -376,8 +346,6 @@ export async function getAllDistricts(): Promise<string[]> {
   }
 }
 
-
-// Google Maps API 相關函數
 export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   try {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
@@ -403,7 +371,7 @@ export async function geocodeAddress(address: string): Promise<{ lat: number; ln
 
 export async function getOptimizedRoute(
   waypoints: Array<{ lat: number; lng: number }>
-): Promise<{ distance: string; duration: string; polyline: string } | null> {
+): Promise<{ distance: string; duration: string; polyline: string; waypointOrder: number[] } | null> {
   try {
     if (waypoints.length < 2) {
       console.error("[Directions] Need at least 2 waypoints");
@@ -427,9 +395,8 @@ export async function getOptimizedRoute(
     url.searchParams.set("origin", origin);
     url.searchParams.set("destination", destination);
     if (waypoints.length > 2) {
-      url.searchParams.set("waypoints", waypointsStr);
+      url.searchParams.set("waypoints", `optimize:true|${waypointsStr}`);
     }
-    url.searchParams.set("optimize", "true");
     url.searchParams.set("key", apiKey);
 
     const response = await fetch(url.toString());
@@ -437,6 +404,7 @@ export async function getOptimizedRoute(
       routes?: Array<{
         legs?: Array<{ distance?: { text: string }; duration?: { text: string } }>;
         overview_polyline?: { points: string };
+        waypoint_order?: number[];
       }>;
     };
 
@@ -446,12 +414,8 @@ export async function getOptimizedRoute(
       let totalDuration = "";
 
       if (route.legs) {
-        const distances = route.legs
-          .map((leg) => leg.distance?.text)
-          .filter((d) => d);
-        const durations = route.legs
-          .map((leg) => leg.duration?.text)
-          .filter((d) => d);
+        const distances = route.legs.map((leg) => leg.distance?.text).filter((d) => d);
+        const durations = route.legs.map((leg) => leg.duration?.text).filter((d) => d);
         totalDistance = distances.join(" + ");
         totalDuration = durations.join(" + ");
       }
@@ -460,6 +424,7 @@ export async function getOptimizedRoute(
         distance: totalDistance || "N/A",
         duration: totalDuration || "N/A",
         polyline: route.overview_polyline?.points || "",
+        waypointOrder: route.waypoint_order || [],
       };
     }
 
@@ -469,7 +434,6 @@ export async function getOptimizedRoute(
     return null;
   }
 }
-
 
 export async function searchCasesByNameAndDistrict(
   clientName: string,
@@ -513,20 +477,17 @@ export async function getMissedCases(): Promise<Case[]> {
   }
 
   try {
-    // 使用台灣時間（UTC+8）
     const now = new Date();
     const taiwanTime = new Date(now.getTime() + (8 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
     const today = new Date(taiwanTime);
     today.setHours(0, 0, 0, 0);
 
-    const result = await db.select().from(cases).where(
+    return await db.select().from(cases).where(
       and(
         eq(cases.visitStatus, "unvisited"),
         lt(cases.scheduledVisitDate, today)
       )
     );
-
-    return result;
   } catch (error) {
     console.error("[Database] Failed to get missed cases:", error);
     return [];
@@ -541,31 +502,24 @@ export async function getMissedCasesByDistrict(district: string): Promise<Case[]
   }
 
   try {
-    // 使用台灣時間（UTC+8）
     const now = new Date();
     const taiwanTime = new Date(now.getTime() + (8 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
     const today = new Date(taiwanTime);
     today.setHours(0, 0, 0, 0);
 
-    const result = await db.select().from(cases).where(
+    return await db.select().from(cases).where(
       and(
         eq(cases.visitStatus, "unvisited"),
         lt(cases.scheduledVisitDate, today),
         eq(cases.district, district)
       )
     );
-
-    return result;
   } catch (error) {
     console.error("[Database] Failed to get missed cases by district:", error);
     return [];
   }
 }
 
-
-/**
- * 保存評估表資料
- */
 export async function saveAssessment(
   caseId: number,
   assessmentData: Record<string, any>,
@@ -578,7 +532,7 @@ export async function saveAssessment(
 
   try {
     const now = new Date();
-    const result = await db.insert(assessments).values({
+    await db.insert(assessments).values({
       caseId,
       assessmentDate: now,
       assessmentData: JSON.stringify(assessmentData),
@@ -586,7 +540,6 @@ export async function saveAssessment(
       status: "completed",
     });
 
-    // 獲取剛插入的記錄
     const inserted = await db
       .select()
       .from(assessments)
@@ -594,16 +547,18 @@ export async function saveAssessment(
       .orderBy(desc(assessments.createdAt))
       .limit(1);
 
-    return inserted[0] || { id: 0, caseId, assessmentDate: now, assessmentData: JSON.stringify(assessmentData), signatureUrl, status: "completed", createdAt: now, updatedAt: now };
+    return inserted[0] || {
+      id: 0, caseId, assessmentDate: now,
+      assessmentData: JSON.stringify(assessmentData),
+      signatureUrl: signatureUrl || null,
+      status: "completed", createdAt: now, updatedAt: now
+    };
   } catch (error) {
     console.error("[Database] Failed to save assessment:", error);
     throw error;
   }
 }
 
-/**
- * 獲取個案的所有評估表記錄
- */
 export async function getAssessmentsByCaseId(caseId: number): Promise<Assessment[]> {
   const db = await getDb();
   if (!db) {
@@ -612,22 +567,17 @@ export async function getAssessmentsByCaseId(caseId: number): Promise<Assessment
   }
 
   try {
-    const result = await db
+    return await db
       .select()
       .from(assessments)
       .where(eq(assessments.caseId, caseId))
       .orderBy(desc(assessments.createdAt));
-
-    return result;
   } catch (error) {
     console.error("[Database] Failed to get assessments:", error);
     return [];
   }
 }
 
-/**
- * 獲取個案的最新評估表
- */
 export async function getLatestAssessment(caseId: number): Promise<Assessment | null> {
   const db = await getDb();
   if (!db) {
