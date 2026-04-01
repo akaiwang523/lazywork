@@ -225,7 +225,11 @@ export async function updateCaseScheduledVisitDate(
 
   try {
     await db.update(cases)
-      .set({ scheduledVisitDate: scheduledDate, updatedAt: new Date() })
+      .set({
+        scheduledVisitDate: scheduledDate,
+        isRescheduled: true,
+        updatedAt: new Date(),
+      })
       .where(eq(cases.id, caseId));
   } catch (error) {
     console.error("[Database] Failed to update case scheduled visit date:", error);
@@ -597,5 +601,26 @@ export async function getLatestAssessment(caseId: number): Promise<Assessment | 
   } catch (error) {
     console.error("[Database] Failed to get latest assessment:", error);
     return null;
+  }
+}
+export async function getDailyReport(date: string): Promise<{
+  scheduled: Case[];
+  visited: Case[];
+  rescheduled: Case[];
+}> {
+  const db = await getDb();
+  if (!db) return { scheduled: [], visited: [], rescheduled: [] };
+
+  try {
+    const scheduled = await db.select().from(cases).where(
+      sql`DATE(${cases.scheduledVisitDate}) = ${date}`
+    );
+    const visited = scheduled.filter(c => c.visitStatus === "visited");
+    const rescheduled = scheduled.filter(c => c.isRescheduled === true);
+
+    return { scheduled, visited, rescheduled };
+  } catch (error) {
+    console.error("[Database] Failed to get daily report:", error);
+    return { scheduled: [], visited: [], rescheduled: [] };
   }
 }

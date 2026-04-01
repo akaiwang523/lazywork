@@ -13,6 +13,7 @@ import RoutePlannerPage from "./pages/RoutePlannerPage";
 import SchedulePage from "./pages/SchedulePage";
 import MissedCasesPage from "./pages/MissedCasesPage";
 import AssessmentPage from "./pages/AssessmentPage";
+import DailyReportPage from "./pages/DailyReportPage";
 import {
   Menu,
   X,
@@ -27,9 +28,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "./_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 
 function Router() {
@@ -43,6 +44,7 @@ function Router() {
       <Route path={"/cases/missed"} component={MissedCasesPage} />
       <Route path={"/route-planner"} component={RoutePlannerPage} />
       <Route path={"/schedule"} component={SchedulePage} />
+      <Route path={"/daily-report"} component={DailyReportPage} />
       <Route path={"/assessment/:caseId"} component={AssessmentPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
@@ -57,6 +59,7 @@ const menuItems = [
   { label: "訪視未果名單", href: "/cases/missed", icon: AlertCircle },
   { label: "路線規劃", href: "/route-planner", icon: MapPin },
   { label: "排程", href: "/schedule", icon: Calendar },
+  { label: "日報", href: "/daily-report", icon: FileText },
   { label: "匯入資料", href: "/import", icon: FileUp },
 ];
 

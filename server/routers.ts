@@ -32,9 +32,7 @@ export const appRouter = router({
     }),
   }),
 
-  // 個案管理相關的 procedures
   cases: router({
-    // 匯入 Excel 資料
     importExcel: protectedProcedure
       .input(z.array(z.object({
         sequenceNumber: z.number(),
@@ -58,7 +56,6 @@ export const appRouter = router({
         }
       }),
 
-    // 獲取個案列表（按狀態與區域篩選）
     list: protectedProcedure
       .input(z.object({
         status: z.enum(["unvisited", "visited"]),
@@ -68,20 +65,17 @@ export const appRouter = router({
         return await getCasesByStatusAndDistrict(input.status, input.district);
       }),
 
-    // 獲取所有鄉鎮區
     districts: protectedProcedure
       .query(async () => {
         return await getAllDistricts();
       }),
 
-    // 獲取單個個案詳情
     detail: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await getCaseById(input.id);
       }),
 
-    // 更新個案訪視狀態
     updateVisitStatus: protectedProcedure
       .input(z.object({
         caseId: z.number(),
@@ -92,13 +86,11 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // 獲取訪視統計
     statistics: protectedProcedure
       .query(async () => {
         return await getVisitStatistics();
       }),
 
-    // 更新個案訪視日期
     updateScheduledDate: protectedProcedure
       .input(z.object({
         caseId: z.number(),
@@ -109,19 +101,16 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // 獲取今日待訪個案
     todaysCases: protectedProcedure
       .query(async () => {
         return await getTodaysCases();
       }),
 
-    // 獲取明日待訪個案
     tomorrowsCases: protectedProcedure
       .query(async () => {
         return await getTomorrowsCases();
       }),
 
-    // 搜尋個案
     searchByNameAndDistrict: protectedProcedure
       .input(z.object({
         clientName: z.string(),
@@ -131,7 +120,6 @@ export const appRouter = router({
         return await searchCasesByNameAndDistrict(input.clientName, input.district);
       }),
 
-    // 手動新增個案
     createManually: protectedProcedure
       .input(z.object({
         clientName: z.string(),
@@ -151,7 +139,6 @@ export const appRouter = router({
         }
       }),
 
-    // 未遇名單
     getMissedCases: protectedProcedure
       .query(async () => {
         return await getMissedCases();
@@ -165,9 +152,15 @@ export const appRouter = router({
         }
         return await getMissedCasesByDistrict(input.district);
       }),
+
+    getDailyReport: protectedProcedure
+      .input(z.object({ date: z.string() }))
+      .query(async ({ input }) => {
+        const { getDailyReport } = await import("./db");
+        return await getDailyReport(input.date);
+      }),
   }),
 
-  // Google Maps 路線規劃 API
   maps: router({
     geocodeAddress: publicProcedure
       .input(z.object({ address: z.string() }))
@@ -188,9 +181,7 @@ export const appRouter = router({
       }),
   }),
 
-  // 評估表相關的 procedures
   assessments: router({
-    // 保存評估表資料
     save: protectedProcedure
       .input(z.object({
         caseId: z.number(),
@@ -202,7 +193,6 @@ export const appRouter = router({
         return await saveAssessment(input.caseId, input.assessmentData, input.signatureUrl);
       }),
 
-    // 獲取個案的評估表記錄
     getByCaseId: protectedProcedure
       .input(z.object({ caseId: z.number() }))
       .query(async ({ input }) => {
@@ -210,7 +200,6 @@ export const appRouter = router({
         return await getAssessmentsByCaseId(input.caseId);
       }),
 
-    // 獲取最新的評估表
     getLatest: protectedProcedure
       .input(z.object({ caseId: z.number() }))
       .query(async ({ input }) => {
