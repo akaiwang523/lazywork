@@ -3,7 +3,8 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, MapPin, RotateCcw, Zap, Hand } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, MapPin, RotateCcw, Zap, Hand, ChevronUp, ChevronDown, Calendar, Search } from "lucide-react";
 import { toast } from "sonner";
 
 declare global {
@@ -39,24 +40,30 @@ export default function RoutePlannerPage() {
   const [isPlanning, setIsPlanning] = useState(false);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [resultOpen, setResultOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<Map<number, any>>(new Map());
   const polylineRef = useRef<any>(null);
   const manualOrderRef = useRef<number[]>([]);
-  const geocodedCasesRef = useRef<GeocodedCase[]>([]);
 
   const { data: districts = [] } = trpc.cases.districts.useQuery();
   const { data: cases = [] } = trpc.cases.list.useQuery({
     status: "unvisited",
     district: selectedDistrict === "all" ? undefined : selectedDistrict,
   });
+  const { data: tomorrowsCases = [] } = trpc.cases.tomorrowsCases.useQuery();
 
   const geocodeMutation = trpc.maps.geocodeAddress.useMutation();
   const routeMutation = trpc.maps.getOptimizedRoute.useMutation();
 
-  useEffect(() => { geocodedCasesRef.current = geocodedCases; }, [geocodedCases]);
+  const filteredCases = cases.filter(c =>
+    searchQuery.trim() === "" ||
+    c.clientName.includes(searchQuery.trim()) ||
+    c.address.includes(searchQuery.trim())
+  );
 
   // 載入 Google Maps JS API
   useEffect(() => {
@@ -124,9 +131,7 @@ export default function RoutePlannerPage() {
       .map(id => cases.find(c => c.id === id))
       .filter(Boolean)
       .map(c => ({ lat: c!.lat, lng: c!.lng }));
-
     if (path.length < 2 || !mapInstanceRef.current) return;
-
     polylineRef.current = new window.google.maps.Polyline({
       path,
       geodesic: true,
@@ -145,7 +150,6 @@ export default function RoutePlannerPage() {
   // 顯示個案到地圖
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current || geocodedCases.length === 0) return;
-
     clearMarkers();
     setManualOrder([]);
     manualOrderRef.current = [];
@@ -153,7 +157,6 @@ export default function RoutePlannerPage() {
     setRouteInfo(null);
 
     const bounds = new window.google.maps.LatLngBounds();
-
     geocodedCases.forEach(gc => {
       const marker = new window.google.maps.Marker({
         position: { lat: gc.lat, lng: gc.lng },
@@ -194,16 +197,14 @@ export default function RoutePlannerPage() {
     mapInstanceRef.current.fitBounds(bounds);
   }, [geocodedCases, mapReady, clearMarkers, updateMarkers]);
 
-  const handleShowOnMap = async () => {
-    const selectedItems = cases.filter(c => checkedCases.includes(c.id));
-    if (selectedItems.length === 0) { toast.error("請先勾選個案"); return; }
-
+  const geocodeAndShow = async (caseItems: CaseItem[]) => {
+    if (caseItems.length === 0) { toast.error("沒有個案可定位"); return; }
     setIsGeocoding(true);
     setGeocodedCases([]);
     clearMarkers();
 
     const results: GeocodedCase[] = [];
-    for (const c of selectedItems) {
+    for (const c of caseItems) {
       try {
         const coords = await geocodeMutation.mutateAsync({ address: `台南市${c.district}${c.address}` });
         if (coords) results.push({ ...c, lat: coords.lat, lng: coords.lng });
@@ -212,14 +213,27 @@ export default function RoutePlannerPage() {
 
     setIsGeocoding(false);
     if (results.length === 0) { toast.error("無法定位任何地址"); return; }
-    if (results.length < selectedItems.length) toast.warning(`${results.length}/${selectedItems.length} 個地址成功定位`);
+    if (results.length < caseItems.length) toast.warning(`${results.length}/${caseItems.length} 個地址成功定位`);
     setGeocodedCases(results);
     toast.success("地圖已更新，請點選標記決定訪視順序");
+  };
+
+  const handleShowOnMap = async () => {
+    const selectedItems = cases.filter(c => checkedCases.includes(c.id));
+    await geocodeAndShow(selectedItems);
+  };
+
+  const handleLoadTomorrow = async () => {
+    if (tomorrowsCases.length === 0) { toast.error("明日沒有排定的行程"); return; }
+    setCheckedCases(tomorrowsCases.map((c: CaseItem) => c.id));
+    await geocodeAndShow(tomorrowsCases);
+    toast.success(`已載入明日 ${tomorrowsCases.length} 筆行程`);
   };
 
   const handleManualRoute = () => {
     if (manualOrder.length < 2) { toast.error("請在地圖上點選至少 2 個個案"); return; }
     setMode("manual");
+    setResultOpen(true);
     drawPolyline(manualOrder, geocodedCases);
     toast.success("已依點選順序排列路線");
   };
@@ -251,6 +265,7 @@ export default function RoutePlannerPage() {
         manualOrderRef.current = finalOrder;
         setManualOrder(finalOrder);
         setMode("auto");
+        setResultOpen(true);
         setRouteInfo({ distance: route.distance, duration: route.duration });
         updateMarkers(finalOrder);
         drawPolyline(finalOrder, geocodedCases);
@@ -271,6 +286,17 @@ export default function RoutePlannerPage() {
     updateMarkers([]);
   };
 
+  const openGoogleMaps = () => {
+    const origin = orderedCaseList[0];
+    const destination = orderedCaseList[orderedCaseList.length - 1];
+    const waypoints = orderedCaseList.slice(1, -1);
+    const originStr = encodeURIComponent(`台南市${origin.district}${origin.address}`);
+    const destStr = encodeURIComponent(`台南市${destination.district}${destination.address}`);
+    const waypointStr = waypoints.map(c => encodeURIComponent(`台南市${c.district}${c.address}`)).join('|');
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${originStr}&destination=${destStr}${waypointStr ? `&waypoints=${waypointStr}` : ''}&travelmode=driving`;
+    window.open(url, '_blank');
+  };
+
   const orderedCaseList = manualOrder
     .map(id => geocodedCases.find(c => c.id === id))
     .filter(Boolean) as GeocodedCase[];
@@ -278,11 +304,11 @@ export default function RoutePlannerPage() {
   return (
     <div className="flex h-screen bg-slate-950">
       {/* 左側清單 */}
-      <div className="w-68 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col" style={{ width: "270px" }}>
-        <div className="p-4 border-b border-slate-800">
-          <h2 className="text-base font-bold text-slate-100 mb-3">選擇個案</h2>
+      <div className="w-64 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col">
+        <div className="p-3 border-b border-slate-800 space-y-2">
+          <h2 className="text-sm font-bold text-slate-100">選擇個案</h2>
           <Select value={selectedDistrict} onValueChange={v => { setSelectedDistrict(v); setCheckedCases([]); }}>
-            <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-100 h-8 text-sm">
+            <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-100 h-8 text-xs">
               <SelectValue placeholder="選擇鄉鎮區" />
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700">
@@ -290,45 +316,62 @@ export default function RoutePlannerPage() {
               {districts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
           </Select>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+            <Input
+              placeholder="搜尋姓名或地址"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="bg-slate-800 border-slate-700 text-slate-200 h-8 text-xs pl-7"
+            />
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-          {cases.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 text-sm">沒有待訪個案</div>
-          ) : cases.map(c => (
+        <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
+          {filteredCases.length === 0 ? (
+            <div className="text-center py-8 text-slate-500 text-xs">沒有符合的個案</div>
+          ) : filteredCases.map(c => (
             <div
               key={c.id}
-              className="flex items-center gap-2 p-2.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               onClick={() => setCheckedCases(prev =>
                 prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
               )}
             >
-              <Checkbox checked={checkedCases.includes(c.id)} onCheckedChange={() => {}} className="flex-shrink-0" />
+              <Checkbox checked={checkedCases.includes(c.id)} onCheckedChange={() => {}} className="flex-shrink-0 w-3.5 h-3.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-200 truncate">{c.clientName}</p>
+                <p className="text-xs font-medium text-slate-200 truncate">{c.clientName}</p>
                 <p className="text-xs text-slate-500 truncate">{c.district}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="p-3 border-t border-slate-800 space-y-2">
+        <div className="p-2.5 border-t border-slate-800 space-y-1.5">
           <p className="text-xs text-slate-500 text-center">已勾選 {checkedCases.length} 個</p>
+          <Button
+            onClick={handleLoadTomorrow}
+            disabled={isGeocoding}
+            variant="outline"
+            className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 text-xs h-8"
+          >
+            <Calendar className="w-3 h-3 mr-1.5" />載入明日行程
+          </Button>
           <Button
             onClick={handleShowOnMap}
             disabled={checkedCases.length === 0 || isGeocoding}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-sm h-9"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-xs h-8"
           >
             {isGeocoding
-              ? <><Loader2 className="w-3 h-3 mr-2 animate-spin" />定位中...</>
-              : <><MapPin className="w-3 h-3 mr-2" />顯示在地圖上</>
+              ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />定位中...</>
+              : <><MapPin className="w-3 h-3 mr-1.5" />顯示在地圖上</>
             }
           </Button>
         </div>
       </div>
 
       {/* 右側地圖 */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 relative">
           <div ref={mapRef} className="absolute inset-0" />
 
@@ -348,18 +391,18 @@ export default function RoutePlannerPage() {
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
               {mode !== "idle" && (
                 <Button size="sm" variant="outline" onClick={resetRoute}
-                  className="bg-slate-900/90 border-slate-700 text-slate-300 backdrop-blur-sm text-xs">
+                  className="bg-slate-900/90 border-slate-700 text-slate-300 backdrop-blur-sm text-xs h-8">
                   <RotateCcw className="w-3 h-3 mr-1" />重新選擇
                 </Button>
               )}
               {mode === "idle" && manualOrder.length >= 2 && (
                 <>
                   <Button size="sm" onClick={handleManualRoute}
-                    className="bg-blue-600 hover:bg-blue-700 backdrop-blur-sm shadow-lg text-xs">
+                    className="bg-blue-600 hover:bg-blue-700 backdrop-blur-sm shadow-lg text-xs h-8">
                     <Hand className="w-3 h-3 mr-1" />依點選順序
                   </Button>
                   <Button size="sm" onClick={handleAutoRoute} disabled={isPlanning}
-                    className="bg-emerald-600 hover:bg-emerald-700 backdrop-blur-sm shadow-lg text-xs">
+                    className="bg-emerald-600 hover:bg-emerald-700 backdrop-blur-sm shadow-lg text-xs h-8">
                     {isPlanning ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Zap className="w-3 h-3 mr-1" />}
                     自動最佳化
                   </Button>
@@ -369,61 +412,52 @@ export default function RoutePlannerPage() {
           )}
         </div>
 
-        {/* 底部訪視順序 */}
+        {/* 底部結果列 — 可收合 */}
         {mode !== "idle" && orderedCaseList.length > 0 && (
-  <div className="bg-slate-900 border-t border-slate-800 p-4">
-    <div className="flex items-start gap-6">
-      {routeInfo && (
-        <div className="flex gap-4 flex-shrink-0">
-          <div>
-            <p className="text-xs text-slate-500 mb-1">總距離</p>
-            <p className="text-sm font-medium text-slate-200">{routeInfo.distance}</p>
+          <div className="bg-slate-900 border-t border-slate-800 flex-shrink-0">
+            {/* 收合按鈕列 */}
+            <button
+              onClick={() => setResultOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-2 text-xs text-slate-400 hover:bg-slate-800 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="font-medium text-slate-300">
+                  {mode === "manual" ? "手動排序" : "自動最佳化"} · {orderedCaseList.length} 個個案
+                </span>
+                {routeInfo && (
+                  <span className="text-slate-500">{routeInfo.distance} · {routeInfo.duration}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={e => { e.stopPropagation(); openGoogleMaps(); }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-xs h-6 px-2"
+                >
+                  <MapPin className="w-3 h-3 mr-1" />Google Maps 導航
+                </Button>
+                {resultOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+              </div>
+            </button>
+
+            {/* 展開內容 */}
+            {resultOpen && (
+              <div className="px-4 pb-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {orderedCaseList.map((c, i) => (
+                    <div key={c.id} className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-2 py-1">
+                      <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="text-xs text-slate-200">{c.clientName}</span>
+                      <span className="text-xs text-slate-500">{c.district}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <div>
-            <p className="text-xs text-slate-500 mb-1">預計時間</p>
-            <p className="text-sm font-medium text-slate-200">{routeInfo.duration}</p>
-          </div>
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-slate-500 mb-2">
-          {mode === "manual" ? "手動排序" : "自動最佳化"} · 訪視順序
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {orderedCaseList.map((c, i) => (
-            <div key={c.id} className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-2.5 py-1.5">
-              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                {i + 1}
-              </span>
-              <span className="text-sm text-slate-200">{c.clientName}</span>
-              <span className="text-xs text-slate-500">{c.district}</span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3">
-          <Button
-            size="sm"
-            onClick={() => {
-              const origin = orderedCaseList[0];
-              const destination = orderedCaseList[orderedCaseList.length - 1];
-              const waypoints = orderedCaseList.slice(1, -1);
-              const originStr = encodeURIComponent(`台南市${origin.district}${origin.address}`);
-              const destStr = encodeURIComponent(`台南市${destination.district}${destination.address}`);
-              const waypointStr = waypoints
-                .map(c => encodeURIComponent(`台南市${c.district}${c.address}`))
-                .join('|');
-              const url = `https://www.google.com/maps/dir/?api=1&origin=${originStr}&destination=${destStr}${waypointStr ? `&waypoints=${waypointStr}` : ''}&travelmode=driving`;
-              window.open(url, '_blank');
-            }}
-            className="bg-emerald-600 hover:bg-emerald-700 text-xs"
-          >
-            <MapPin className="w-3 h-3 mr-1" />在 Google Maps 開啟導航
-          </Button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+        )}
       </div>
     </div>
   );
