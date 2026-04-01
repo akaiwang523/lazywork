@@ -79,31 +79,36 @@ export default function RoutePlannerPage() {
         return;
       }
 
-      const waypoints = geocoded.map(g => ({ lat: g.lat, lng: g.lng }));
+      // 把所有點都當 waypoints，第一個點同時當 origin 和加入 waypoints
+// 讓 Google 完全自由排序
+const allAsWaypoints = [
+  geocoded[0],
+  ...geocoded.slice(1),
+];
+const waypoints = allAsWaypoints.map(g => ({ lat: g.lat, lng: g.lng }));
 
-      // 獲取最優路線（後端回傳 waypointOrder）
-      const route = await routeMutation.mutateAsync({ waypoints });
+const route = await routeMutation.mutateAsync({ waypoints });
 
-      if (route) {
-        setRouteInfo({
-          distance: route.distance,
-          duration: route.duration,
-        });
+if (route) {
+  setRouteInfo({
+    distance: route.distance,
+    duration: route.duration,
+  });
 
-        // 用優化後的順序重新排列
-        const waypointOrder: number[] = (route as any).waypointOrder || [];
+  const waypointOrder: number[] = (route as any).waypointOrder || [];
 
-        let orderedGeocoded: typeof geocoded;
-        if (waypointOrder.length > 0 && geocoded.length > 2) {
-          // Google 只優化中間的 waypoints，首尾不變
-          const first = geocoded[0];
-          const last = geocoded[geocoded.length - 1];
-          const middle = geocoded.slice(1, -1);
-          const orderedMiddle = waypointOrder.map(i => middle[i]).filter(Boolean);
-          orderedGeocoded = [first, ...orderedMiddle, last];
-        } else {
-          orderedGeocoded = geocoded;
-        }
+  let orderedGeocoded: typeof geocoded;
+  if (waypointOrder.length > 0 && geocoded.length > 2) {
+    // 所有中間點都自由排序（首尾固定是 Google 的限制）
+    // 為了盡量自由，我們把除了最後一個以外的都放中間
+    const first = geocoded[0];
+    const last = geocoded[geocoded.length - 1];
+    const middle = geocoded.slice(1, -1);
+    const orderedMiddle = waypointOrder.map(i => middle[i]).filter(Boolean);
+    orderedGeocoded = [first, ...orderedMiddle, last];
+  } else {
+    orderedGeocoded = geocoded;
+  }
 
         // 設定優化後的個案順序
         setOptimizedCases(
