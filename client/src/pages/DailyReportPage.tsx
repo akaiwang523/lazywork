@@ -3,8 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { FileText, Download, Plus, X } from "lucide-react";
+import { Download, Plus, X } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -13,14 +12,64 @@ type ExtraItem = {
   note: string;
 };
 
+// 移到元件外面，避免每次 render 重新建立元件導致 focus 跑掉
+function ExtraSection({
+  label,
+  items,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: {
+  label: string;
+  items: ExtraItem[];
+  onAdd: () => void;
+  onUpdate: (index: number, field: "name" | "note", value: string) => void;
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-slate-300">{label}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500">{items.length} 人</span>
+          <button onClick={onAdd} className="text-blue-400 hover:text-blue-300 transition-colors">
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      {items.map((item, i) => (
+        <div key={i} className="flex gap-2 items-center">
+          <Input
+            placeholder="姓名"
+            value={item.name}
+            onChange={e => onUpdate(i, "name", e.target.value)}
+            className="bg-slate-800 border-slate-700 text-slate-200 h-8 text-xs w-24 flex-shrink-0"
+          />
+          <Input
+            placeholder="備註（選填）"
+            value={item.note}
+            onChange={e => onUpdate(i, "note", e.target.value)}
+            className="bg-slate-800 border-slate-700 text-slate-200 h-8 text-xs flex-1"
+          />
+          <button
+            onClick={() => onRemove(i)}
+            className="text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ))}
+      {items.length === 0 && (
+        <p className="text-xs text-slate-600 pl-1">0 人</p>
+      )}
+    </div>
+  );
+}
+
 export default function DailyReportPage() {
   const today = format(new Date(), "yyyy-MM-dd");
   const [selectedDate, setSelectedDate] = useState(today);
-
-  // 未訪視成功的備註（每個人可填）
   const [unvisitedNotes, setUnvisitedNotes] = useState<Record<number, string>>({});
-
-  // 6789 項目
   const [repair, setRepair] = useState<ExtraItem[]>([]);
   const [resource, setResource] = useState<ExtraItem[]>([]);
   const [lifeHelp, setLifeHelp] = useState<ExtraItem[]>([]);
@@ -56,7 +105,7 @@ export default function DailyReportPage() {
 
   const generateReport = () => {
     const dateStr = selectedDate.replace(/-/g, "/");
-    const lines = [
+    return [
       dateStr,
       `1.應訪：${scheduled.length}人${scheduled.length > 0 ? `(${formatNames(scheduled)})` : ""}`,
       `2.已訪：${visited.length}人${visited.length > 0 ? `(${formatNames(visited)})` : ""}`,
@@ -67,13 +116,11 @@ export default function DailyReportPage() {
       `7.資源轉介：${formatExtraItems(resource)}`,
       `8.生活協助：${formatExtraItems(lifeHelp)}`,
       `9.物資發送：${formatExtraItems(supplies)}`,
-    ];
-    return lines.join("\n");
+    ].join("\n");
   };
 
   const handleDownload = () => {
-    const content = generateReport();
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([generateReport()], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -90,75 +137,14 @@ export default function DailyReportPage() {
     toast.success("已複製到剪貼簿");
   };
 
-  const addExtraItem = (setter: React.Dispatch<React.SetStateAction<ExtraItem[]>>) => {
-    setter(prev => [...prev, { name: "", note: "" }]);
-  };
-
-  const updateExtraItem = (
-    setter: React.Dispatch<React.SetStateAction<ExtraItem[]>>,
-    index: number,
-    field: "name" | "note",
-    value: string
-  ) => {
-    setter(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
-  };
-
-  const removeExtraItem = (
-    setter: React.Dispatch<React.SetStateAction<ExtraItem[]>>,
-    index: number
-  ) => {
-    setter(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const ExtraSection = ({
-    label,
-    items,
-    setter,
-  }: {
-    label: string;
-    items: ExtraItem[];
-    setter: React.Dispatch<React.SetStateAction<ExtraItem[]>>;
-  }) => (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-300">{label}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">{items.length} 人</span>
-          <button
-            onClick={() => addExtraItem(setter)}
-            className="text-blue-400 hover:text-blue-300 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-      {items.map((item, i) => (
-        <div key={i} className="flex gap-2 items-center">
-          <Input
-            placeholder="姓名"
-            value={item.name}
-            onChange={e => updateExtraItem(setter, i, "name", e.target.value)}
-            className="bg-slate-800 border-slate-700 text-slate-200 h-8 text-xs w-24 flex-shrink-0"
-          />
-          <Input
-            placeholder="備註（選填）"
-            value={item.note}
-            onChange={e => updateExtraItem(setter, i, "note", e.target.value)}
-            className="bg-slate-800 border-slate-700 text-slate-200 h-8 text-xs flex-1"
-          />
-          <button
-            onClick={() => removeExtraItem(setter, i)}
-            className="text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      ))}
-      {items.length === 0 && (
-        <p className="text-xs text-slate-600 pl-1">0 人</p>
-      )}
-    </div>
-  );
+  // 各區段的操作函數
+  const makeHandlers = (setter: React.Dispatch<React.SetStateAction<ExtraItem[]>>) => ({
+    onAdd: () => setter(prev => [...prev, { name: "", note: "" }]),
+    onUpdate: (i: number, field: "name" | "note", value: string) =>
+      setter(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item)),
+    onRemove: (i: number) =>
+      setter(prev => prev.filter((_, idx) => idx !== i)),
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
@@ -171,7 +157,6 @@ export default function DailyReportPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* 左側：自動帶入資料 */}
           <div className="space-y-4">
-            {/* 日期選擇 */}
             <Card className="bg-slate-900/50 border-slate-800 p-4">
               <label className="block text-sm font-medium text-slate-300 mb-2">選擇日期</label>
               <Input
@@ -182,15 +167,12 @@ export default function DailyReportPage() {
               />
             </Card>
 
-            {/* 自動帶入項目 */}
             <Card className="bg-slate-900/50 border-slate-800 p-4 space-y-4">
               <h3 className="text-sm font-medium text-slate-300">自動帶入資料</h3>
-
               {isLoading ? (
                 <p className="text-xs text-slate-500">載入中...</p>
               ) : (
                 <>
-                  {/* 1. 應訪 */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-slate-400">1. 應訪</span>
@@ -199,15 +181,12 @@ export default function DailyReportPage() {
                     {scheduled.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {scheduled.map(c => (
-                          <span key={c.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded">
-                            {c.clientName}
-                          </span>
+                          <span key={c.id} className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded">{c.clientName}</span>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  {/* 2. 已訪 */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-slate-400">2. 已訪</span>
@@ -216,15 +195,12 @@ export default function DailyReportPage() {
                     {visited.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {visited.map(c => (
-                          <span key={c.id} className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded">
-                            {c.clientName}
-                          </span>
+                          <span key={c.id} className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded">{c.clientName}</span>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  {/* 3. 補訪 */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-slate-400">3. 補訪本月名單</span>
@@ -233,21 +209,17 @@ export default function DailyReportPage() {
                     {rescheduled.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {rescheduled.map(c => (
-                          <span key={c.id} className="text-xs bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded">
-                            {c.clientName}
-                          </span>
+                          <span key={c.id} className="text-xs bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded">{c.clientName}</span>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  {/* 4. 非本月 */}
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-400">4. 非本月預排名單訪視</span>
                     <span className="text-xs font-medium text-slate-400">0 人</span>
                   </div>
 
-                  {/* 5. 未訪視成功 */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs text-slate-400">5. 未訪視成功</span>
@@ -272,16 +244,14 @@ export default function DailyReportPage() {
 
           {/* 右側：手動填入 + 預覽 */}
           <div className="space-y-4">
-            {/* 6789 手動項目 */}
             <Card className="bg-slate-900/50 border-slate-800 p-4 space-y-4">
               <h3 className="text-sm font-medium text-slate-300">手動填入項目</h3>
-              <ExtraSection label="6. 維修" items={repair} setter={setRepair} />
-              <ExtraSection label="7. 資源轉介" items={resource} setter={setResource} />
-              <ExtraSection label="8. 生活協助" items={lifeHelp} setter={setLifeHelp} />
-              <ExtraSection label="9. 物資發送" items={supplies} setter={setSupplies} />
+              <ExtraSection label="6. 維修" items={repair} {...makeHandlers(setRepair)} />
+              <ExtraSection label="7. 資源轉介" items={resource} {...makeHandlers(setResource)} />
+              <ExtraSection label="8. 生活協助" items={lifeHelp} {...makeHandlers(setLifeHelp)} />
+              <ExtraSection label="9. 物資發送" items={supplies} {...makeHandlers(setSupplies)} />
             </Card>
 
-            {/* 預覽 */}
             <Card className="bg-slate-900/50 border-slate-800 p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-medium text-slate-300">預覽</h3>
