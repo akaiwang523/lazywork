@@ -371,39 +371,59 @@ export default function RoutePlannerPage() {
 
         {/* 底部訪視順序 */}
         {mode !== "idle" && orderedCaseList.length > 0 && (
-          <div className="bg-slate-900 border-t border-slate-800 p-4">
-            <div className="flex items-start gap-6">
-              {routeInfo && (
-                <div className="flex gap-4 flex-shrink-0">
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">總距離</p>
-                    <p className="text-sm font-medium text-slate-200">{routeInfo.distance}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">預計時間</p>
-                    <p className="text-sm font-medium text-slate-200">{routeInfo.duration}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-500 mb-2">
-                  {mode === "manual" ? "手動排序" : "自動最佳化"} · 訪視順序
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {orderedCaseList.map((c, i) => (
-                    <div key={c.id} className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-2.5 py-1.5">
-                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm text-slate-200">{c.clientName}</span>
-                      <span className="text-xs text-slate-500">{c.district}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+  <div className="bg-slate-900 border-t border-slate-800 p-4">
+    <div className="flex items-start gap-6">
+      {routeInfo && (
+        <div className="flex gap-4 flex-shrink-0">
+          <div>
+            <p className="text-xs text-slate-500 mb-1">總距離</p>
+            <p className="text-sm font-medium text-slate-200">{routeInfo.distance}</p>
           </div>
-        )}
+          <div>
+            <p className="text-xs text-slate-500 mb-1">預計時間</p>
+            <p className="text-sm font-medium text-slate-200">{routeInfo.duration}</p>
+          </div>
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-slate-500 mb-2">
+          {mode === "manual" ? "手動排序" : "自動最佳化"} · 訪視順序
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {orderedCaseList.map((c, i) => (
+            <div key={c.id} className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-2.5 py-1.5">
+              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                {i + 1}
+              </span>
+              <span className="text-sm text-slate-200">{c.clientName}</span>
+              <span className="text-xs text-slate-500">{c.district}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3">
+          <Button
+            size="sm"
+            onClick={() => {
+              const origin = orderedCaseList[0];
+              const destination = orderedCaseList[orderedCaseList.length - 1];
+              const waypoints = orderedCaseList.slice(1, -1);
+              const originStr = encodeURIComponent(`台南市${origin.district}${origin.address}`);
+              const destStr = encodeURIComponent(`台南市${destination.district}${destination.address}`);
+              const waypointStr = waypoints
+                .map(c => encodeURIComponent(`台南市${c.district}${c.address}`))
+                .join('|');
+              const url = `https://www.google.com/maps/dir/?api=1&origin=${originStr}&destination=${destStr}${waypointStr ? `&waypoints=${waypointStr}` : ''}&travelmode=driving`;
+              window.open(url, '_blank');
+            }}
+            className="bg-emerald-600 hover:bg-emerald-700 text-xs"
+          >
+            <MapPin className="w-3 h-3 mr-1" />在 Google Maps 開啟導航
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );
