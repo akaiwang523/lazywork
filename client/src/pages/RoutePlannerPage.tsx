@@ -55,7 +55,7 @@ export default function RoutePlannerPage() {
     district: selectedDistrict === "all" ? undefined : selectedDistrict,
   });
   const { data: tomorrowsCases = [] } = trpc.cases.tomorrowsCases.useQuery();
-
+  const { data: todaysCases = [] } = trpc.cases.todaysCases.useQuery();
   const geocodeMutation = trpc.maps.geocodeAddress.useMutation();
   const routeMutation = trpc.maps.getOptimizedRoute.useMutation();
 
@@ -350,13 +350,18 @@ export default function RoutePlannerPage() {
         <div className="p-2.5 border-t border-slate-800 space-y-1.5">
           <p className="text-xs text-slate-500 text-center">已勾選 {checkedCases.length} 個</p>
           <Button
-            onClick={handleLoadTomorrow}
-            disabled={isGeocoding}
-            variant="outline"
-            className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 text-xs h-8"
-          >
-            <Calendar className="w-3 h-3 mr-1.5" />載入明日行程
-          </Button>
+  onClick={async () => {
+    if (todaysCases.length === 0) { toast.error("今日沒有排定的行程"); return; }
+    setCheckedCases(todaysCases.map((c: CaseItem) => c.id));
+    await geocodeAndShow(todaysCases);
+    toast.success(`已載入今日 ${todaysCases.length} 筆行程`);
+  }}
+  disabled={isGeocoding}
+  variant="outline"
+  className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 text-xs h-8"
+>
+  <Calendar className="w-3 h-3 mr-1.5" />載入今日行程
+</Button>
           <Button
             onClick={handleShowOnMap}
             disabled={checkedCases.length === 0 || isGeocoding}
