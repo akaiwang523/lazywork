@@ -45,7 +45,7 @@ body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--
 .field-group input,.field-group textarea,.field-group select{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;color:var(--text);background:white}
 .field-group input:focus,.field-group textarea:focus{outline:none;border-color:var(--blue)}
 .field-group textarea{min-height:80px;resize:vertical}
-.drug-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}
+.drug-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}
 .drug-row input{padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;width:100%}
 .del-btn{width:32px;height:36px;border:1px solid #fca5a5;border-radius:8px;background:#fef2f2;color:var(--red);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
 .add-btn{padding:8px 16px;border:1.5px dashed var(--border);border-radius:8px;background:white;color:var(--muted);cursor:pointer;font-size:13px;font-family:inherit;width:100%;margin-top:4px}
@@ -325,10 +325,10 @@ function toggleCheck(key,v,btn){
   btn.classList.toggle('selected');
 }
 
-function addDrug(d){ drugs.push(d||{name:'',dose:'',freq:'',way:''}); renderDrugs(); }
+function addDrug(d){ drugs.push(d||{name:'',dose:'',freq:'',way:'',effect:''}); renderDrugs(); }
 function renderDrugs(){
   const el=document.getElementById('drug-list');
-  el.innerHTML=drugs.map((d,i)=>`<div class="drug-row"><input placeholder="藥名" value="${d.name||''}" oninput="drugs[${i}].name=this.value"><input placeholder="劑量" value="${d.dose||''}" oninput="drugs[${i}].dose=this.value"><input placeholder="頻率" value="${d.freq||''}" oninput="drugs[${i}].freq=this.value"><input placeholder="途徑" value="${d.way||''}" oninput="drugs[${i}].way=this.value"><button class="del-btn" onclick="drugs.splice(${i},1);renderDrugs()">×</button></div>`).join('');
+  el.innerHTML=drugs.map((d,i)=>`<div class="drug-row"><input placeholder="藥名" value="${d.name||''}" oninput="drugs[${i}].name=this.value"><input placeholder="劑量" value="${d.dose||''}" oninput="drugs[${i}].dose=this.value"><input placeholder="頻率" value="${d.freq||''}" oninput="drugs[${i}].freq=this.value"><input placeholder="途徑" value="${d.way||''}" oninput="drugs[${i}].way=this.value"><input placeholder="功效" value="${d.effect||''}" oninput="drugs[${i}].effect=this.value"><button class="del-btn" onclick="drugs.splice(${i},1);renderDrugs()">×</button></div>`).join('');
 }
 
 function calcBMI(){
@@ -403,7 +403,7 @@ async function handleDrugImage(input) {
             {
               type: 'text',
               text: `請辨識這張藥袋圖片中的藥物資訊，以 JSON 陣列回傳，格式如下，只回傳 JSON 不要其他文字：
-[{"name":"藥名","dose":"劑量（如 1顆、5mg）","freq":"頻率（如 每日3次、飯後）","way":"途徑（如 口服、外用）"}]
+[{"name":"藥名","dose":"劑量（如 1顆、5mg）","freq":"頻率（如 每日3次、飯後）","way":"途徑（如 口服、外用）","effect":"藥物功效（如 降血壓、控制血糖，若無法判斷填空字串）"}]
 如果看不到藥物資訊，回傳空陣列 []。`
             }
           ]
