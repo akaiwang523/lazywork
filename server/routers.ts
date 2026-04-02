@@ -159,6 +159,28 @@ export const appRouter = router({
         const { getDailyReport } = await import("./db");
         return await getDailyReport(input.date);
       }),
+
+    saveDailyReport: protectedProcedure
+      .input(z.object({
+        date: z.string(),
+        repair: z.array(z.object({ name: z.string(), note: z.string() })),
+        resource: z.array(z.object({ name: z.string(), note: z.string() })),
+        lifeHelp: z.array(z.object({ name: z.string(), note: z.string() })),
+        supplies: z.array(z.object({ name: z.string(), note: z.string() })),
+        unvisitedNotes: z.record(z.string(), z.string()),
+      }))
+      .mutation(async ({ input }) => {
+        const { saveDailyReport } = await import("./db");
+        await saveDailyReport(input.date, input);
+        return { success: true };
+      }),
+
+    getDailyReportExtra: protectedProcedure
+      .input(z.object({ date: z.string() }))
+      .query(async ({ input }) => {
+        const { getDailyReportExtra } = await import("./db");
+        return await getDailyReportExtra(input.date);
+      }),
   }),
 
   maps: router({

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Download, Plus, X } from "lucide-react";
+import { Download, Plus, X, Save } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -12,7 +12,6 @@ type ExtraItem = {
   note: string;
 };
 
-// 移到元件外面，避免每次 render 重新建立元件導致 focus 跑掉
 function ExtraSection({
   label,
   items,
@@ -74,11 +73,77 @@ export default function DailyReportPage() {
   const [resource, setResource] = useState<ExtraItem[]>([]);
   const [lifeHelp, setLifeHelp] = useState<ExtraItem[]>([]);
   const [supplies, setSupplies] = useState<ExtraItem[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstLoad = useRef(true);
 
   const { data: reportData, isLoading } = trpc.cases.getDailyReport.useQuery(
     { date: selectedDate },
     { enabled: !!selectedDate }
   );
+
+  const { data: extraData } = trpc.cases.getDailyReportExtra.useQuery(
+    { date: selectedDate },
+    { enabled: !!selectedDate }
+  );
+
+  const saveMutation = trpc.cases.saveDailyReport.useMutation({
+    onSuccess: () => {
+      setIsSaving(false);
+      setLastSaved(format(new Date(), "HH:mm:ss"));
+    },
+    onError: () => {
+      setIsSaving(false);
+      toast.error("儲存失敗");
+    },
+  });
+
+  // 載入已儲存的資料
+  useEffect(() => {
+    if (extraData) {
+      setRepair(extraData.repair || []);
+      setResource(extraData.resource || []);
+      setLifeHelp(extraData.lifeHelp || []);
+      setSupplies(extraData.supplies || []);
+      const notes: Record<number, string> = {};
+      Object.entries(extraData.unvisitedNotes || {}).forEach(([k, v]) => {
+        notes[Number(k)] = v as string;
+      });
+      setUnvisitedNotes(notes);
+      isFirstLoad.current = false;
+    } else if (!isLoading) {
+      setRepair([]);
+      setResource([]);
+      setLifeHelp([]);
+      setSupplies([]);
+      setUnvisitedNotes({});
+      isFirstLoad.current = false;
+    }
+  }, [extraData, selectedDate]);
+
+  // 日期切換時重置
+  useEffect(() => {
+    isFirstLoad.current = true;
+    setLastSaved(null);
+  }, [selectedDate]);
+
+  const triggerAutoSave = (
+    r: ExtraItem[], res: ExtraItem[], lh: ExtraItem[], s: ExtraItem[], notes: Record<number, string>
+  ) => {
+    if (isFirstLoad.current) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      setIsSaving(true);
+      const stringNotes: Record<string, string> = {};
+      Object.entries(notes).forEach(([k, v]) => { stringNotes[k] = v; });
+      saveMutation.mutate({
+        date: selectedDate,
+        repair: r, resource: res, lifeHelp: lh, supplies: s,
+        unvisitedNotes: stringNotes,
+      });
+    }, 1000);
+  };
 
   const scheduled = reportData?.scheduled || [];
   const visited = reportData?.visited || [];
@@ -137,21 +202,76 @@ export default function DailyReportPage() {
     toast.success("已複製到剪貼簿");
   };
 
-  // 各區段的操作函數
-  const makeHandlers = (setter: React.Dispatch<React.SetStateAction<ExtraItem[]>>) => ({
-    onAdd: () => setter(prev => [...prev, { name: "", note: "" }]),
-    onUpdate: (i: number, field: "name" | "note", value: string) =>
-      setter(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item)),
-    onRemove: (i: number) =>
-      setter(prev => prev.filter((_, idx) => idx !== i)),
+  const handleManualSave = () => {
+    setIsSaving(true);
+    const stringNotes: Record<string, string> = {};
+    Object.entries(unvisitedNotes).forEach(([k, v]) => { stringNotes[k] = v; });
+    saveMutation.mutate({
+      date: selectedDate,
+      repair, resource, lifeHelp, supplies,
+      unvisitedNotes: stringNotes,
+    });
+  };
+
+  const makeHandlers = (
+    setter: React.Dispatch<React.SetStateAction<ExtraItem[]>>,
+    getCurrent: () => ExtraItem[]
+  ) => ({
+    onAdd: () => {
+      const next = [...getCurrent(), { name: "", note: "" }];
+      setter(next);
+      triggerAutoSave(
+        setter === setRepair ? next : repair,
+        setter === setResource ? next : resource,
+        setter === setLifeHelp ? next : lifeHelp,
+        setter === setSupplies ? next : supplies,
+        unvisitedNotes
+      );
+    },
+    onUpdate: (i: number, field: "name" | "note", value: string) => {
+      const next = getCurrent().map((item, idx) => idx === i ? { ...item, [field]: value } : item);
+      setter(next);
+      triggerAutoSave(
+        setter === setRepair ? next : repair,
+        setter === setResource ? next : resource,
+        setter === setLifeHelp ? next : lifeHelp,
+        setter === setSupplies ? next : supplies,
+        unvisitedNotes
+      );
+    },
+    onRemove: (i: number) => {
+      const next = getCurrent().filter((_, idx) => idx !== i);
+      setter(next);
+      triggerAutoSave(
+        setter === setRepair ? next : repair,
+        setter === setResource ? next : resource,
+        setter === setLifeHelp ? next : lifeHelp,
+        setter === setSupplies ? next : supplies,
+        unvisitedNotes
+      );
+    },
   });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
       <div className="max-w-3xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-100 mb-1">每日訪視日報</h1>
-          <p className="text-slate-400 text-sm">選擇日期後自動帶入訪視資料，填寫完成後下載文字檔</p>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-100 mb-1">每日訪視日報</h1>
+            <p className="text-slate-400 text-sm">選擇日期後自動帶入訪視資料，填寫完成後下載文字檔</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {lastSaved && (
+              <span className="text-xs text-slate-500">已儲存 {lastSaved}</span>
+            )}
+            {isSaving && (
+              <span className="text-xs text-slate-500">儲存中...</span>
+            )}
+            <Button size="sm" onClick={handleManualSave} disabled={isSaving}
+              className="bg-slate-700 hover:bg-slate-600 text-xs h-8">
+              <Save className="w-3 h-3 mr-1" />儲存
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -231,7 +351,11 @@ export default function DailyReportPage() {
                         <Input
                           placeholder="原因備註"
                           value={unvisitedNotes[c.id] || ""}
-                          onChange={e => setUnvisitedNotes(prev => ({ ...prev, [c.id]: e.target.value }))}
+                          onChange={e => {
+                            const next = { ...unvisitedNotes, [c.id]: e.target.value };
+                            setUnvisitedNotes(next);
+                            triggerAutoSave(repair, resource, lifeHelp, supplies, next);
+                          }}
                           className="bg-slate-800 border-slate-700 text-slate-200 h-7 text-xs flex-1"
                         />
                       </div>
@@ -246,10 +370,10 @@ export default function DailyReportPage() {
           <div className="space-y-4">
             <Card className="bg-slate-900/50 border-slate-800 p-4 space-y-4">
               <h3 className="text-sm font-medium text-slate-300">手動填入項目</h3>
-              <ExtraSection label="6. 維修" items={repair} {...makeHandlers(setRepair)} />
-              <ExtraSection label="7. 資源轉介" items={resource} {...makeHandlers(setResource)} />
-              <ExtraSection label="8. 生活協助" items={lifeHelp} {...makeHandlers(setLifeHelp)} />
-              <ExtraSection label="9. 物資發送" items={supplies} {...makeHandlers(setSupplies)} />
+              <ExtraSection label="6. 維修" items={repair} {...makeHandlers(setRepair, () => repair)} />
+              <ExtraSection label="7. 資源轉介" items={resource} {...makeHandlers(setResource, () => resource)} />
+              <ExtraSection label="8. 生活協助" items={lifeHelp} {...makeHandlers(setLifeHelp, () => lifeHelp)} />
+              <ExtraSection label="9. 物資發送" items={supplies} {...makeHandlers(setSupplies, () => supplies)} />
             </Card>
 
             <Card className="bg-slate-900/50 border-slate-800 p-4">

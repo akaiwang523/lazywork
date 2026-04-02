@@ -1,4 +1,5 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean } from "drizzle-orm/mysql-core";
+import { InsertUser, users, cases, Case, assessments, Assessment, dailyReports } from "../drizzle/schema";
 
 /**
  * Core user table backing auth flow.
@@ -64,6 +65,7 @@ export const cases = mysqlTable("cases", {
   geocodeStatus: mysqlEnum("geocodeStatus", ["pending", "success", "failed"]).default("pending").notNull(),
   /** 來源: excel=Excel匯入, manual=手動新增 */
   source: mysqlEnum("source", ["excel", "manual"]).default("excel").notNull(),
+  isRescheduled: boolean("isRescheduled").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -136,3 +138,18 @@ export const assessments = mysqlTable("assessments", {
 
 export type Assessment = typeof assessments.$inferSelect;
 export type InsertAssessment = typeof assessments.$inferInsert;
+
+export const dailyReports = mysqlTable("dailyReports", {
+  id: int("id").autoincrement().primaryKey(),
+  date: varchar("date", { length: 10 }).notNull().unique(),
+  repair: text("repair").default("[]").notNull(),
+  resource: text("resource").default("[]").notNull(),
+  lifeHelp: text("lifeHelp").default("[]").notNull(),
+  supplies: text("supplies").default("[]").notNull(),
+  unvisitedNotes: text("unvisitedNotes").default("{}").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DailyReport = typeof dailyReports.$inferSelect;
+export type InsertDailyReport = typeof dailyReports.$inferInsert;

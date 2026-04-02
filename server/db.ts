@@ -624,3 +624,52 @@ export async function getDailyReport(date: string): Promise<{
     return { scheduled: [], visited: [], rescheduled: [] };
   }
 }
+
+export async function saveDailyReport(
+  date: string,
+  data: {
+    repair: { name: string; note: string }[];
+    resource: { name: string; note: string }[];
+    lifeHelp: { name: string; note: string }[];
+    supplies: { name: string; note: string }[];
+    unvisitedNotes: Record<string, string>;
+  }
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(dailyReports).values({
+    date,
+    repair: JSON.stringify(data.repair),
+    resource: JSON.stringify(data.resource),
+    lifeHelp: JSON.stringify(data.lifeHelp),
+    supplies: JSON.stringify(data.supplies),
+    unvisitedNotes: JSON.stringify(data.unvisitedNotes),
+  }).onDuplicateKeyUpdate({
+    set: {
+      repair: JSON.stringify(data.repair),
+      resource: JSON.stringify(data.resource),
+      lifeHelp: JSON.stringify(data.lifeHelp),
+      supplies: JSON.stringify(data.supplies),
+      unvisitedNotes: JSON.stringify(data.unvisitedNotes),
+      updatedAt: new Date(),
+    },
+  });
+}
+
+export async function getDailyReportExtra(date: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(dailyReports).where(eq(dailyReports.date, date)).limit(1);
+  if (result.length === 0) return null;
+
+  const r = result[0];
+  return {
+    repair: JSON.parse(r.repair),
+    resource: JSON.parse(r.resource),
+    lifeHelp: JSON.parse(r.lifeHelp),
+    supplies: JSON.parse(r.supplies),
+    unvisitedNotes: JSON.parse(r.unvisitedNotes),
+  };
+}
