@@ -186,7 +186,9 @@ body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--
       </div>
       <div id="ocr-status" class="ocr-status"></div>
       <div id="drug-list"></div>
-      <button class="add-btn" onclick="addDrug()">+ 新增藥物</button>
+      <button class="add-btn" onclick="copyDrugs()" style="border-color:#00b388;color:#00b388;margin-bottom:4px">📋 複製用藥清單</button>
+<button class="add-btn" onclick="copyDrugs()" style="border-color:#00b388;color:#00b388;margin-bottom:4px">📋 複製用藥清單</button>
+<button class="add-btn" onclick="addDrug()">+ 新增藥物</button>
     </div>
   </div>
 </div>
@@ -246,6 +248,19 @@ body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--
   <button class="reset-btn" onclick="resetForm()">重新填寫</button>
   <button class="gen-btn" onclick="generateResult()">📋 產生填寫清單</button>
 </div>
+
+function copyDrugs() {
+  if (drugs.length === 0) { alert('尚無藥物資料'); return; }
+  const text = drugs
+    .filter(d => d.name)
+    .map(d => [d.name, d.dose, d.freq, d.effect].filter(Boolean).join(' '))
+    .join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    alert('✓ 已複製用藥清單');
+  }).catch(() => {
+    prompt('請手動複製：', text);
+  });
+}
 
 <script>
 const VISION_API_KEY = 'sk-uJgRXvVIWO6FfyqgcQJ4v9AqiYH21I3DA2Dx5cKXockkLS4r';
