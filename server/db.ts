@@ -1,6 +1,6 @@
 import { eq, and, like, lt, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, cases, Case, assessments, Assessment } from "../drizzle/schema";
+import { InsertUser, users, cases, Case, assessments, Assessment, dailyReports } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { sql } from "drizzle-orm";
 
