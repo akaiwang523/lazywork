@@ -688,6 +688,19 @@ function init(){
   renderRadio('blood-sugar-timing',['飯前','飯後','隨機'],'blood_sugar_timing');
 }
 init();
+function copyDrugs() {
+  if (drugs.length === 0) { alert('尚無藥物資料'); return; }
+  const text = drugs
+    .filter(d => d.name)
+    .map(d => [d.name, d.dose, d.freq, d.effect].filter(Boolean).join(' '))
+    .join('
+');
+  navigator.clipboard.writeText(text).then(() => {
+    alert('✓ 已複製用藥清單');
+  }).catch(() => {
+    prompt('請手動複製：', text);
+  });
+}
 </script>
 </body>
 </html>
