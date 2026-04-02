@@ -673,3 +673,11 @@ export async function getDailyReportExtra(date: string) {
     unvisitedNotes: JSON.parse(r.unvisitedNotes),
   };
 }
+
+export async function updateMissedNote(caseId: number, note: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(cases)
+    .set({ missedNote: note, updatedAt: new Date() })
+    .where(eq(cases.id, caseId));
+}

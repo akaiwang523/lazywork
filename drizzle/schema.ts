@@ -66,6 +66,7 @@ export const cases = mysqlTable("cases", {
   /** 來源: excel=Excel匯入, manual=手動新增 */
   source: mysqlEnum("source", ["excel", "manual"]).default("excel").notNull(),
   isRescheduled: boolean("isRescheduled").default(false).notNull(),
+  missedNote: text("missedNote"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

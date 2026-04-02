@@ -175,11 +175,22 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    getDailyReportExtra: protectedProcedure
+    ggetDailyReportExtra: protectedProcedure
       .input(z.object({ date: z.string() }))
       .query(async ({ input }) => {
         const { getDailyReportExtra } = await import("./db");
         return await getDailyReportExtra(input.date);
+      }),
+
+    updateMissedNote: protectedProcedure
+      .input(z.object({
+        caseId: z.number(),
+        note: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const { updateMissedNote } = await import("./db");
+        await updateMissedNote(input.caseId, input.note);
+        return { success: true };
       }),
   }),
 
