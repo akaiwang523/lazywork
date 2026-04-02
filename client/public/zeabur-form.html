@@ -249,18 +249,6 @@ body{font-family:'Microsoft JhengHei',sans-serif;background:#f0f4f8;color:var(--
   <button class="gen-btn" onclick="generateResult()">📋 產生填寫清單</button>
 </div>
 
-function copyDrugs() {
-  if (drugs.length === 0) { alert('尚無藥物資料'); return; }
-  const text = drugs
-    .filter(d => d.name)
-    .map(d => [d.name, d.dose, d.freq, d.effect].filter(Boolean).join(' '))
-    .join('\n');
-  navigator.clipboard.writeText(text).then(() => {
-    alert('✓ 已複製用藥清單');
-  }).catch(() => {
-    prompt('請手動複製：', text);
-  });
-}
 
 <script>
 const VISION_API_KEY = 'sk-uJgRXvVIWO6FfyqgcQJ4v9AqiYH21I3DA2Dx5cKXockkLS4r';
@@ -693,8 +681,7 @@ function copyDrugs() {
   const text = drugs
     .filter(d => d.name)
     .map(d => [d.name, d.dose, d.freq, d.effect].filter(Boolean).join(' '))
-    .join('
-');
+    .join('\n');
   navigator.clipboard.writeText(text).then(() => {
     alert('✓ 已複製用藥清單');
   }).catch(() => {
