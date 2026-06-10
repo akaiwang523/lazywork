@@ -128,6 +128,7 @@ export async function importCasesFromExcel(casesData: any[]): Promise<number> {
   }
 }
 
+// ✅ 修正：移除 source="excel" 限制，手動新增個案也會出現在名單中
 export async function getCasesByStatusAndDistrict(
   status: "unvisited" | "visited" | "all",
   district?: string
@@ -140,7 +141,6 @@ export async function getCasesByStatusAndDistrict(
 
   try {
     const conditions = [];
-    conditions.push(eq(cases.source, "excel"));
     if (status !== "all") {
       conditions.push(eq(cases.visitStatus, status));
     }
@@ -196,6 +196,7 @@ export async function updateCaseVisitStatus(
   }
 }
 
+// ✅ 修正：移除 source="excel" 限制，統計數字包含手動新增個案
 export async function getVisitStatistics() {
   const db = await getDb();
   if (!db) {
@@ -204,7 +205,7 @@ export async function getVisitStatistics() {
   }
 
   try {
-    const allCases = await db.select().from(cases).where(eq(cases.source, "excel"));
+    const allCases = await db.select().from(cases);
     const visited = allCases.filter(c => c.visitStatus === "visited").length;
     const unvisited = allCases.filter(c => c.visitStatus === "unvisited").length;
     return { total: allCases.length, visited, unvisited };
@@ -330,6 +331,7 @@ export async function createCaseManually(caseData: {
   }
 }
 
+// ✅ 修正：移除 source="excel" 限制，區域下拉選單包含手動新增個案的區域
 export async function getAllDistricts(): Promise<string[]> {
   const db = await getDb();
   if (!db) {
@@ -338,8 +340,7 @@ export async function getAllDistricts(): Promise<string[]> {
   }
 
   try {
-    const result = await db.select({ district: cases.district }).from(cases)
-      .where(eq(cases.source, "excel"));
+    const result = await db.select({ district: cases.district }).from(cases);
     const districts = Array.from(new Set(result.map(r => r.district)))
       .filter(d => d && d.trim() !== "")
       .sort();
@@ -603,6 +604,7 @@ export async function getLatestAssessment(caseId: number): Promise<Assessment | 
     return null;
   }
 }
+
 export async function getDailyReport(date: string): Promise<{
   scheduled: Case[];
   visited: Case[];
