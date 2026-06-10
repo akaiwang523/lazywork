@@ -618,7 +618,7 @@ export async function getDailyReport(date: string): Promise<{
       sql`DATE(${cases.scheduledVisitDate}) = ${date}`
     );
     const visited = scheduled.filter(c => c.visitStatus === "visited");
-    const rescheduled = scheduled.filter(c => c.isRescheduled === true);
+    const rescheduled = scheduled.filter(c => c.isRescheduled === true && c.visitStatus !== "visited");
 
     return { scheduled, visited, rescheduled };
   } catch (error) {
