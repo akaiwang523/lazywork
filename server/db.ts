@@ -605,6 +605,7 @@ export async function getLatestAssessment(caseId: number): Promise<Assessment | 
   }
 }
 
+// ✅ 修正：補訪本月名單 = 今天完成訪視，且實際訪視日期晚於原排定日期
 export async function getDailyReport(date: string): Promise<{
   scheduled: Case[];
   visited: Case[];
@@ -614,11 +615,22 @@ export async function getDailyReport(date: string): Promise<{
   if (!db) return { scheduled: [], visited: [], rescheduled: [] };
 
   try {
+    // 應訪：今天排定要訪的人
     const scheduled = await db.select().from(cases).where(
       sql`DATE(${cases.scheduledVisitDate}) = ${date}`
     );
+
+    // 已訪：今天排定且已完成的人
     const visited = scheduled.filter(c => c.visitStatus === "visited");
-    const rescheduled = scheduled.filter(c => c.isRescheduled === true && c.visitStatus === "visited");
+
+    // 補訪本月名單：今天才完成訪視，但原本排定日期比今天早（拖延補訪）
+    const rescheduled = await db.select().from(cases).where(
+      and(
+        eq(cases.visitStatus, "visited"),
+        sql`DATE(${cases.lastVisitedAt}) = ${date}`,
+        sql`DATE(${cases.lastVisitedAt}) > DATE(${cases.scheduledVisitDate})`
+      )
+    );
 
     return { scheduled, visited, rescheduled };
   } catch (error) {
